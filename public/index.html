@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFZ Marktplatz - Entdecke & Verbinde</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🔬 SFZ Marktplatz</div>
+            <nav>
+                <button class="nav-btn active" data-view="discover">Entdecken</button>
+                <button class="nav-btn" data-view="listings">Anzeigen</button>
+                <button class="nav-btn" data-view="people">Schüler</button>
+                <button class="nav-btn" id="accountBtn" style="display:none" data-view="account">👤 Konto</button>
+                <button class="nav-btn" onclick="document.getElementById('bugModal').classList.add('active')">🐛 Bug</button>
+                <button class="nav-btn primary" data-view="create">+ Neu</button>
+            </nav>
+            <div class="user-menu" id="userMenu">
+                <button id="loginBtn">🔐 SFZ-Zugang</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Discover View -->
+            <div class="view active" id="discover">
+                <div class="hero">
+                    <h1>Entdecke Projekte & Mitstreiter</h1>
+                    <p>Im SFZ verbinden wir Schüler mit ähnlichen Interessen. Wenige Nutzer, mehr Nähe.</p>
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Suche nach Themen, Skills, Projekten...">
+                        <button id="searchBtn">🔍</button>
+                    </div>
+                </div>
+
+                <div class="discovery-grid">
+                    <div class="discover-card">
+                        <h3>🎲 Zufällige Entdeckung</h3>
+                        <p>Finde überraschende Projekte außerhalb deiner Filterblase</p>
+                        <button class="btn-secondary" onclick="loadRandom()">Neue Vorschläge</button>
+                        <div id="randomListings" class="mini-list"></div>
+                    </div>
+
+                    <div class="discover-card" id="matchCard" style="display:none">
+                        <h3>🎯 Passend zu dir</h3>
+                        <p>Basierend auf deinen Interessen</p>
+                        <div id="matchListings" class="mini-list"></div>
+                    </div>
+
+                    <div class="discover-card">
+                        <h3>👥 Aktive Schüler</h3>
+                        <p>Wer ist gerade im SFZ aktiv?</p>
+                        <div id="activeUsers" class="user-chips"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listings View -->
+            <div class="view" id="listings">
+                <div class="filter-bar">
+                    <button class="filter-btn active" data-filter="all">Alle</button>
+                    <button class="filter-btn" data-filter="angebot">Angebote</button>
+                    <button class="filter-btn" data-filter="gesuch">Gesuche</button>
+                    <button class="filter-btn" data-filter="projekt">Projekte</button>
+                </div>
+                <div id="listingsGrid" class="grid"></div>
+            </div>
+
+            <!-- People View -->
+            <div class="view" id="people">
+                <h2>Schüler im SFZ</h2>
+                <div id="peopleGrid" class="grid people-grid"></div>
+            </div>
+
+            <!-- Create View -->
+            <div class="view" id="create">
+                <h2>Neue Anzeige erstellen</h2>
+                <form id="createForm">
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="title" required placeholder="z.B. Suche Mitstreiter für Robotik-Projekt">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <select id="type">
+                                <option value="angebot">Ich biete an</option>
+                                <option value="gesuch">Ich suche</option>
+                                <option value="projekt">Projektidee</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kategorie</label>
+                            <select id="category">
+                                <option value="technik">Technik & Robotik</option>
+                                <option value="natur">Naturwissenschaften</option>
+                                <option value="informatik">Informatik & Coding</option>
+                                <option value="kunst">Kunst & Design</option>
+                                <option value="gesellschaft">Gesellschaft & Politik</option>
+                                <option value="sonstiges">Sonstiges</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Beschreibung</label>
+                        <textarea id="description" rows="4" placeholder="Beschreibe dein Angebot oder Gesuch..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Preis (optional)</label>
+                            <input type="text" id="price" placeholder="z.B. 15€ oder Tausch">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:12px">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                <input type="checkbox" id="vb" style="width:auto">
+                                <span>VB (Verhandlungsbasis)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tags (kommagetrennt)</label>
+                        <input type="text" id="tags" placeholder="z.B. Python, 3D-Druck, Mathe">
+                    </div>
+                    <div class="form-group">
+                        <label>Bild (optional, max 5MB)</label>
+                        <input type="file" id="image" accept="image/*" style="padding:8px 0">
+                        <div id="imagePreview" style="margin-top:8px;max-width:200px"></div>
+                    </div>
+                    <button type="submit" class="btn-primary">Anzeige erstellen</button>
+                </form>
+            </div>
+            
+            <!-- Account View -->
+            <div class="view" id="account">
+                <h2>Mein Konto</h2>
+                <div id="accountInfo" style="background:var(--card);padding:24px;border-radius:16px;margin-bottom:24px"></div>
+                <h3>Meine Anzeigen</h3>
+                <div id="myListings" class="grid"></div>
+            </div>
+        </main>
+
+        <!-- Login Modal -->
+        <div class="modal" id="loginModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>🔐 SFZ-Zugang</h2>
+                <p style="color:var(--text-light);margin-bottom:20px">Gib das SFZ-Master-Passwort ein, um Anzeigen zu erstellen.</p>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Passwort</label>
+                        <input type="password" id="masterPassword" required placeholder="SFZ Passwort">
+                    </div>
+                    <button type="submit" class="btn-primary">Zugang erhalten</button>
+                </form>
+                <p id="loginError" style="color:#dc2626;margin-top:12px;display:none">Falsches Passwort!</p>
+            </div>
+        </div>
+
+        <!-- User/Profil Modal -->
+        <div class="modal" id="userModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Profil erstellen</h2>
+                <form id="userForm">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="userName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Klassenstufe</label>
+                        <input type="text" id="userGrade" placeholder="z.B. 9a, Q2">
+                    </div>
+                    <div class="form-group">
+                        <label>Interessen</label>
+                        <input type="text" id="userInterests" placeholder="z.B. Astronomie, Programmieren, Biologie">
+                    </div>
+                    <div class="form-group">
+                        <label>Skills</label>
+                        <input type="text" id="userSkills" placeholder="z.B. JavaScript, CAD, Mikroskopie">
+                    </div>
+                    <div class="form-group">
+                        <label>Kontakt (Email oder Telegram)</label>
+                        <input type="text" id="userContact" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Speichern</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Detail Modal -->
+        <div class="modal" id="detailModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="detailContent"></div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Bug Report Modal -->
+        <div class="modal" id="bugModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>🐛 Bug melden</h2>
+                <p style="color:var(--text-light);margin-bottom:20px">Hilf uns, die Website zu verbessern!</p>
+                <form id="bugForm">
+                    <div class="form-group">
+                        <label>Art</label>
+                        <select id="bugCategory">
+                            <option value="bug">Fehler/Bug</option>
+                            <option value="feature">Feature-Wunsch</option>
+                            <option value="ui">Design/Usability</option>
+                            <option value="other">Sonstiges</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="bugTitle" required placeholder="Kurze Beschreibung">
+                    </div>
+                    <div class="form-group">
+                        <label>Beschreibung</label>
+                        <textarea id="bugDesc" rows="4" placeholder="Was ist passiert? Was hast du erwartet?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Dein Name (optional)</label>
+                        <input type="text" id="bugReporter" placeholder="z.B. Max">
+                    </div>
+                    <button type="submit" class="btn-primary">Absenden</button>
+                </form>
+                <p id="bugSuccess" style="color:#16a34a;margin-top:12px;display:none">✅ Danke! Dein Feedback wurde gespeichert.</p>
+            </div>
+        </div>
+
+        <!-- Edit Listing Modal -->
+        <div class="modal" id="editModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Anzeige bearbeiten</h2>
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="editTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Beschreibung</label>
+                        <textarea id="editDescription" rows="4"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Preis</label>
+                            <input type="text" id="editPrice">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:12px">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                <input type="checkbox" id="editVb" style="width:auto">
+                                <span>VB</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <input type="text" id="editTags">
+                    </div>
+                    <div style="display:flex;gap:12px">
+                        <button type="submit" class="btn-primary">Speichern</button>
+                        <button type="button" class="btn-secondary" onclick="deleteListing()" style="background:#dc2626;color:white">🗑️ Löschen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

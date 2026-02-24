@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFZ Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 24px; border-radius: 16px; text-align: center; }
+        .stat-card h3 { font-size: 2.5rem; margin-bottom: 8px; }
+        .bug-list { background: var(--card); border-radius: 16px; padding: 24px; }
+        .bug-item { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .bug-item:last-child { border-bottom: none; }
+        .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .status-open { background: #fee2e2; color: #991b1b; }
+        .status-closed { background: #dcfce7; color: #166534; }
+        .admin-login { max-width: 400px; margin: 100px auto; background: var(--card); padding: 40px; border-radius: 16px; box-shadow: var(--shadow); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="adminLogin" class="admin-login">
+            <h2>🔐 Admin Zugang</h2>
+            <p style="color:var(--text-light);margin:16px 0">Master-Passwort mit "admin-" Prefix</p>
+            <div class="form-group">
+                <input type="password" id="adminPass" placeholder="admin-sfz2024">
+            </div>
+            <button onclick="adminLogin()" class="btn-primary" style="width:100%">Einloggen</button>
+            <p id="adminError" style="color:#dc2626;margin-top:12px;display:none">Falsches Passwort</p>
+        </div>
+
+        <div id="adminPanel" style="display:none">
+            <header style="margin-bottom:40px">
+                <div class="logo">🔬 SFZ Admin</div>
+                <button onclick="logoutAdmin()" class="btn-secondary">Abmelden</button>
+            </header>
+
+            <div class="admin-grid">
+                <div class="stat-card">
+                    <h3 id="statUsers">0</h3>
+                    <p>Schüler</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="statListings">0</h3>
+                    <p>Anzeigen</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="statBugs">0</h3>
+                    <p>Bugs/Feedback</p>
+                </div>
+            </div>
+
+            <div class="bug-list">
+                <h2>🐛 Bug Reports & Feedback</h2>
+                <div id="bugsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = localStorage.getItem('sfz_admin_token');
+        
+        if (adminToken) {
+            document.getElementById('adminLogin').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            loadStats();
+            loadBugs();
+        }
+
+        async function adminLogin() {
+            const pass = document.getElementById('adminPass').value;
+            
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: pass})
+            });
+            
+            const data = await res.json();
+            if (data.success && data.admin) {
+                localStorage.setItem('sfz_admin_token', 'admin-' + data.token);
+                location.reload();
+            } else {
+                document.getElementById('adminError').style.display = 'block';
+            }
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('sfz_admin_token');
+            location.reload();
+        }
+
+        async function loadStats() {
+            const res = await fetch('/api/admin/stats', {
+                headers: {'X-Admin-Auth': adminToken}
+            });
+            const stats = await res.json();
+            document.getElementById('statUsers').textContent = stats.users;
+            document.getElementById('statListings').textContent = stats.listings;
+            document.getElementById('statBugs').textContent = stats.bugs;
+        }
+
+        async function loadBugs() {
+            const res = await fetch('/api/bugs', {
+                headers: {'X-Admin-Auth': adminToken}
+            });
+            const bugs = await res.json();
+            
+            const container = document.getElementById('bugsList');
+            if (bugs.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-light);padding:24px">Keine Bug Reports vorhanden.</p>';
+                return;
+            }
+            
+            container.innerHTML = bugs.map(bug => `
+                <div class="bug-item">
+                    <div>
+                        <strong>${bug.title}</strong>
+                        <p style="color:var(--text-light);margin-top:4px">${bug.description?.substring(0, 100)}...</p>
+                        <small>${bug.category} • ${bug.reporter} • ${new Date(bug.created_at).toLocaleDateString()}</small>
+                    </div>
+                    <select onchange="updateBugStatus(${bug.id}, this.value)" class="status-badge status-${bug.status}">
+                        <option value="open" ${bug.status === 'open' ? 'selected' : ''}>Offen</option>
+                        <option value="closed" ${bug.status === 'closed' ? 'selected' : ''}>Geschlossen</option>
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        async function updateBugStatus(id, status) {
+            await fetch(`/api/bugs/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Auth': adminToken
+                },
+                body: JSON.stringify({status})
+            });
+            loadBugs();
+        }
+    </script>
+</body>
+</html>

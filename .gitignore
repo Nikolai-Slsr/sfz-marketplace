@@ -1,0 +1,5 @@
+node_modules
+sfz.db
+public/uploads
+*.log
+.env
