@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <header>
-            <div class="logo">🔬 SFZ Marktplatz</div>
+            <div class="logo">SFZ Marktplatz</div>
             <nav>
                 <button class="nav-btn active" data-view="discover">Entdecken</button>
                 <button class="nav-btn" data-view="listings">Anzeigen</button>
@@ -20,7 +20,7 @@
                 <button class="nav-btn primary" data-view="create">+ Neu</button>
             </nav>
             <div class="user-menu" id="userMenu">
-                <button id="loginBtn">🔐 SFZ-Zugang</button>
+                <button id="loginBtn">SFZ-Zugang</button>
             </div>
         </header>
 
@@ -38,20 +38,20 @@
 
                 <div class="discovery-grid">
                     <div class="discover-card">
-                        <h3>🎲 Zufällige Entdeckung</h3>
+                        <h3>Zufällige Entdeckung</h3>
                         <p>Finde überraschende Projekte außerhalb deiner Filterblase</p>
                         <button class="btn-secondary" onclick="loadRandom()">Neue Vorschläge</button>
                         <div id="randomListings" class="mini-list"></div>
                     </div>
 
                     <div class="discover-card" id="matchCard" style="display:none">
-                        <h3>🎯 Passend zu dir</h3>
+                        <h3>Passend zu dir</h3>
                         <p>Basierend auf deinen Interessen</p>
                         <div id="matchListings" class="mini-list"></div>
                     </div>
 
                     <div class="discover-card">
-                        <h3>👥 Aktive Schüler</h3>
+                        <h3>Aktive Schüler</h3>
                         <p>Wer ist gerade im SFZ aktiv?</p>
                         <div id="activeUsers" class="user-chips"></div>
                     </div>
@@ -146,7 +146,7 @@
         <div class="modal" id="loginModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
-                <h2>🔐 SFZ-Zugang</h2>
+                <h2>SFZ-Zugang</h2>
                 <p style="color:var(--text-light);margin-bottom:20px">Gib das SFZ-Master-Passwort ein, um Anzeigen zu erstellen.</p>
                 <form id="loginForm">
                     <div class="form-group">
@@ -203,7 +203,7 @@
         <div class="modal" id="bugModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
-                <h2>🐛 Bug melden</h2>
+                <h2>Bug melden</h2>
                 <p style="color:var(--text-light);margin-bottom:20px">Hilf uns, die Website zu verbessern!</p>
                 <form id="bugForm">
                     <div class="form-group">
@@ -229,7 +229,7 @@
                     </div>
                     <button type="submit" class="btn-primary">Absenden</button>
                 </form>
-                <p id="bugSuccess" style="color:#16a34a;margin-top:12px;display:none">✅ Danke! Dein Feedback wurde gespeichert.</p>
+                <p id="bugSuccess" style="color:#16a34a;margin-top:12px;display:none">Danke! Dein Feedback wurde gespeichert.</p>
             </div>
         </div>
 
@@ -266,7 +266,7 @@
                     </div>
                     <div style="display:flex;gap:12px">
                         <button type="submit" class="btn-primary">Speichern</button>
-                        <button type="button" class="btn-secondary" onclick="deleteListing()" style="background:#dc2626;color:white">🗑️ Löschen</button>
+                        <button type="button" class="btn-secondary" onclick="deleteListing()" style="background:#dc2626;color:white">Löschen</button>
                     </div>
                 </form>
             </div>
