@@ -192,13 +192,71 @@
                             <input type="text" id="regContact" required>
                         </div>
                         <div class="form-group">
-                            <label>Invite-Code (optional)</label>
-                            <input type="text" id="regInvite" placeholder="Nur falls nötig">
+                            <label>Invite-Code</label>
+                            <input type="text" id="regInvite" required placeholder="Erforderlich für die Registrierung">
                         </div>
                         <button type="submit" class="btn-primary">Registrieren</button>
                     </form>
                 </div>
                 <p id="authError" style="color:#dc2626;margin-top:12px;display:none">Login fehlgeschlagen.</p>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div class="modal" id="editModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Anzeige bearbeiten</h2>
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="editTitle" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <select id="editType">
+                                <option value="angebot">Ich biete an</option>
+                                <option value="gesuch">Ich suche</option>
+                                <option value="projekt">Projektidee</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kategorie</label>
+                            <select id="editCategory">
+                                <option value="technik">Technik & Robotik</option>
+                                <option value="natur">Naturwissenschaften</option>
+                                <option value="informatik">Informatik & Coding</option>
+                                <option value="kunst">Kunst & Design</option>
+                                <option value="gesellschaft">Gesellschaft & Politik</option>
+                                <option value="sonstiges">Sonstiges</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Beschreibung</label>
+                        <textarea id="editDescription" rows="4"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Preis</label>
+                            <input type="text" id="editPrice">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:12px">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                                <input type="checkbox" id="editVb" style="width:auto">
+                                <span>VB</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tags</label>
+                        <input type="text" id="editTags">
+                    </div>
+                    <button type="submit" class="btn-primary">Speichern</button>
+                    <p style="color:var(--text-light);font-size:0.8rem;margin-top:12px">Info: Bilder können aktuell nicht nachträglich bearbeitet werden.</p>
+                </form>
             </div>
         </div>
 
@@ -208,6 +266,12 @@
                 <span class="close">&times;</span>
                 <div id="detailContent"></div>
             </div>
+        </div>
+
+        <!-- Image Lightbox Modal -->
+        <div class="modal" id="lightboxModal" style="z-index: 2000; background: rgba(0,0,0,0.9);">
+            <span class="close" style="color: white; font-size: 2rem; right: 30px; top: 30px;">&times;</span>
+            <img id="lightboxImage" src="" style="max-width: 90%; max-height: 90vh; object-fit: contain; border-radius: 8px;">
         </div>
 
         <!-- Bug Report Modal -->

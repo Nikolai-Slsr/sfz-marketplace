@@ -21,17 +21,7 @@
 </head>
 <body>
     <div class="container">
-        <div id="adminLogin" class="admin-login">
-            <h2>Admin Zugang</h2>
-            <p style="color:var(--text-light);margin:16px 0">Master-Passwort mit "admin-" Prefix</p>
-            <div class="form-group">
-                <input type="password" id="adminPass" placeholder="admin-sfz2024">
-            </div>
-            <button onclick="adminLogin()" class="btn-primary" style="width:100%">Einloggen</button>
-            <p id="adminError" style="color:#dc2626;margin-top:12px;display:none">Falsches Passwort</p>
-        </div>
-
-        <div id="adminPanel" style="display:none">
+        <div id="adminPanel">
             <header style="margin-bottom:40px">
                 <div class="logo">SFZ Admin</div>
                 <button onclick="logoutAdmin()" class="btn-secondary">Abmelden</button>
@@ -56,56 +46,145 @@
                 <h2>Bug Reports & Feedback</h2>
                 <div id="bugsList"></div>
             </div>
+
+            <div class="bug-list" style="margin-top: 40px;">
+                <h2>Benutzerverwaltung</h2>
+                <div id="usersList" style="overflow-x: auto;"></div>
+            </div>
+
+            <div class="bug-list" style="margin-top: 40px; border-left: 5px solid #ef4444;">
+                <h2>🛡️ Sicherheits-Radar</h2>
+                <div id="securityLogs" style="font-family:monospace; font-size: 0.85rem; max-height:300px; overflow-y:auto; background:#1e293b; color:#cbd5e1; padding:16px; border-radius:8px; line-height:1.6;">Lade Logs...</div>
+            </div>
         </div>
     </div>
 
     <script>
-        let adminToken = localStorage.getItem('sfz_admin_token');
-        
-        if (adminToken) {
-            document.getElementById('adminLogin').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            loadStats();
-            loadBugs();
-        }
+        let currentUserId = null;
 
-        async function adminLogin() {
-            const pass = document.getElementById('adminPass').value;
-            
-            const res = await fetch('/api/auth', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({password: pass})
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function(m) {
+                switch (m) {
+                    case '&': return '&amp;';
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '"': return '&quot;';
+                    case "'": return '&#039;';
+                }
             });
-            
-            const data = await res.json();
-            if (data.success && data.admin) {
-                localStorage.setItem('sfz_admin_token', 'admin-' + data.token);
-                location.reload();
-            } else {
-                document.getElementById('adminError').style.display = 'block';
-            }
         }
 
-        function logoutAdmin() {
-            localStorage.removeItem('sfz_admin_token');
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/me');
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.is_admin) {
+                        currentUserId = user.id;
+                        loadStats();
+                        loadBugs();
+                        loadUsers();
+                        loadRadar();
+                        return;
+                    }
+                }
+            } catch (e) {}
+            alert('Zugriff verweigert. Bitte logge dich auf der Hauptseite als Admin ein.');
+            window.location.href = '/';
+        }
+
+        checkAuth();
+
+        async function logoutAdmin() {
+            await fetch('/api/logout', { method: 'POST' });
             location.reload();
         }
 
         async function loadStats() {
-            const res = await fetch('/api/admin/stats', {
-                headers: {'X-Admin-Auth': adminToken}
-            });
+            const res = await fetch('/api/admin/stats');
+            if (!res.ok) return;
             const stats = await res.json();
             document.getElementById('statUsers').textContent = stats.users;
             document.getElementById('statListings').textContent = stats.listings;
             document.getElementById('statBugs').textContent = stats.bugs;
         }
 
-        async function loadBugs() {
-            const res = await fetch('/api/bugs', {
-                headers: {'X-Admin-Auth': adminToken}
+        async function loadUsers() {
+            const res = await fetch('/api/admin/users');
+            if (!res.ok) return;
+            const users = await res.json();
+            
+            const container = document.getElementById('usersList');
+            if (users.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-light);padding:24px">Keine Benutzer vorhanden.</p>';
+                return;
+            }
+            
+            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Name</th><th style="padding:12px;">Klasse</th><th style="padding:12px;">Rolle</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
+            
+            users.forEach(user => {
+                const isAdmin = user.is_admin === 1;
+                const isSelf = user.id === currentUserId;
+                html += `<tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding:12px;"><strong>${escapeHtml(user.name)}</strong></td>
+                    <td style="padding:12px;">${escapeHtml(user.grade) || '-'}</td>
+                    <td style="padding:12px;">
+                        <span class="status-badge ${isAdmin ? 'status-closed' : 'status-open'}" style="background:${isAdmin ? '#e0f2fe' : '#f1f5f9'}; color:${isAdmin ? '#0369a1' : '#64748b'}">
+                            ${isAdmin ? 'Admin' : 'User'}
+                        </span>
+                    </td>
+                    <td style="padding:12px;">
+                        ${!isSelf ? `
+                        <button onclick="toggleAdminRole(${user.id}, ${!isAdmin})" class="status-badge" style="border:none; cursor:pointer; background:${isAdmin ? '#f1f5f9' : '#e0f2fe'}; color:${isAdmin ? '#64748b' : '#0369a1'}; margin-right:8px;">
+                            ${isAdmin ? 'Admin entfernen' : 'Zum Admin machen'}
+                        </button>
+                        <button onclick="deleteUser(${user.id})" class="status-badge status-open" style="border:none; cursor:pointer;">
+                            Löschen
+                        </button>
+                        ` : '<span style="color:var(--text-light); font-size: 0.8rem;">(Du)</span>'}
+                    </td>
+                </tr>`;
             });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function toggleAdminRole(userId, makeAdmin) {
+            if (!confirm(`Soll der Nutzer wirklich ${makeAdmin ? 'zum Admin gemacht' : 'Admin-Rechte entzogen'} werden?`)) return;
+            
+            const res = await fetch(`/api/admin/users/${userId}/role`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({is_admin: makeAdmin})
+            });
+            
+            if (res.ok) {
+                loadUsers();
+            } else {
+                alert('Fehler beim Ändern der Rolle.');
+            }
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm(`WARNUNG: Soll der Benutzer wirklich gelöscht werden? Alle Anzeigen und Daten werden unwiderruflich entfernt!`)) return;
+            
+            const res = await fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE'
+            });
+            
+            if (res.ok) {
+                loadUsers();
+                loadStats(); // Refresh stats too
+            } else {
+                const data = await res.json();
+                alert('Fehler beim Löschen: ' + (data.error || 'Unbekannt'));
+            }
+        }
+
+        async function loadBugs() {
+            const res = await fetch('/api/bugs');
+            if (!res.ok) return;
             const bugs = await res.json();
             
             const container = document.getElementById('bugsList');
@@ -117,9 +196,9 @@
             container.innerHTML = bugs.map(bug => `
                 <div class="bug-item">
                     <div>
-                        <strong>${bug.title}</strong>
-                        <p style="color:var(--text-light);margin-top:4px">${bug.description?.substring(0, 100)}...</p>
-                        <small>${bug.category} • ${bug.reporter} • ${new Date(bug.created_at).toLocaleDateString()}</small>
+                        <strong>${escapeHtml(bug.title)}</strong>
+                        <p style="color:var(--text-light);margin-top:4px">${escapeHtml(bug.description?.substring(0, 100))}...</p>
+                        <small>${escapeHtml(bug.category)} • ${escapeHtml(bug.reporter)} • ${new Date(bug.created_at).toLocaleDateString()}</small>
                     </div>
                     <select onchange="updateBugStatus(${bug.id}, this.value)" class="status-badge status-${bug.status}">
                         <option value="open" ${bug.status === 'open' ? 'selected' : ''}>Offen</option>
@@ -129,12 +208,38 @@
             `).join('');
         }
 
+        async function loadRadar() {
+            try {
+                const res = await fetch('/api/admin/logs');
+                if (!res.ok) return;
+                const logs = await res.json();
+                
+                const container = document.getElementById('securityLogs');
+                if (logs.length === 0) {
+                    container.innerHTML = '<span style="color:#94a3b8">Bisher keine Auffälligkeiten.</span>';
+                    return;
+                }
+                
+                container.innerHTML = logs.map(l => {
+                    let color = '#38bdf8'; // info
+                    if (l.event_type.includes('FAIL') || l.event_type.includes('ERROR')) color = '#f87171'; // red
+                    if (l.event_type.includes('LIMIT')) color = '#fbbf24'; // orange
+                    
+                    return `<div style="padding:4px 0; border-bottom:1px solid #334155;">
+                        <span style="color:#64748b; margin-right:8px">[${new Date(l.created_at).toLocaleTimeString()}]</span>
+                        <strong style="color:${color}">${l.event_type}</strong>
+                        <span style="color:#94a3b8"> (${l.ip_address})</span>: 
+                        ${escapeHtml(l.details)}
+                    </div>`;
+                }).join('');
+            } catch(e) {}
+        }
+
         async function updateBugStatus(id, status) {
             await fetch(`/api/bugs/${id}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Admin-Auth': adminToken
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({status})
             });

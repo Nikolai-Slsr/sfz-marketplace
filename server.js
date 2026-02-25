@@ -12,7 +12,11 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
-const INVITE_CODE = process.env.SFZ_INVITE_CODE || null;
+const INVITE_CODE = process.env.SFZ_INVITE_CODE;
+if (!INVITE_CODE) {
+  console.error("FATAL ERROR: SFZ_INVITE_CODE is not set in the environment.");
+  process.exit(1);
+}
 const COOKIE_SECURE = process.env.SFZ_SECURE_COOKIE === 'true';
 
 // Rate Limiting
@@ -24,8 +28,11 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {error: 'Zu viele Login-Versuche.'}
+  max: 5, // Stricter limit
+  handler: (req, res) => {
+    logSecurityEvent('RATE_LIMIT_EXCEEDED', req, 'Too many login attempts');
+    res.status(429).json({error: 'Zu viele Login-Versuche. Bitte warten.'});
+  }
 });
 
 app.use(bodyParser.json({limit: '10mb'}));
@@ -97,7 +104,37 @@ db.serialize(() => {
     status TEXT DEFAULT 'open',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  
+  // Migration for existing tables
+  db.all("PRAGMA table_info(bugs)", (err, rows) => {
+    if (err) return;
+    const columns = rows.map(r => r.name);
+    if (!columns.includes('status')) {
+      db.run("ALTER TABLE bugs ADD COLUMN status TEXT DEFAULT 'open'");
+    }
+    if (!columns.includes('category')) {
+      db.run("ALTER TABLE bugs ADD COLUMN category TEXT DEFAULT 'bug'");
+    }
+  });
+
+  db.run(`CREATE TABLE IF NOT EXISTS security_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    ip_address TEXT,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
 });
+
+function logSecurityEvent(type, req, details = '') {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    db.run(`INSERT INTO security_logs (event_type, ip_address, details) VALUES (?, ?, ?)`, 
+        [type, ip, details], 
+        (err) => {
+            if (err) console.error('Error logging security event:', err);
+        }
+    );
+}
 
 function createSession(userId, cb) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -136,15 +173,16 @@ app.post('/api/register', authLimiter, (req, res) => {
   const {name, grade, interests, skills, contact, password, inviteCode} = req.body;
   if (!name || !password) return res.status(400).json({error: 'Name und Passwort erforderlich'});
 
-  if (!INVITE_CODE) {
-    return res.status(500).json({error: 'Invite-Code nicht konfiguriert'});
-  }
   if (!inviteCode || inviteCode !== INVITE_CODE) {
+    logSecurityEvent('REGISTER_FAIL_INVITE', req, `Invalid invite code: ${inviteCode}`);
     return res.status(403).json({error: 'Ungültiger Invite-Code'});
   }
 
   db.get(`SELECT id FROM users WHERE name = ?`, [name], (err, existing) => {
-    if (existing) return res.status(409).json({error: 'Name bereits vergeben'});
+    if (existing) {
+        logSecurityEvent('REGISTER_FAIL_EXISTS', req, `Username taken: ${name}`);
+        return res.status(409).json({error: 'Name bereits vergeben'});
+    }
 
     const password_hash = bcrypt.hashSync(password, 10);
     const sql = `INSERT INTO users (name, grade, interests, skills, contact, password_hash) VALUES (?,?,?,?,?,?)`;
@@ -153,6 +191,9 @@ app.post('/api/register', authLimiter, (req, res) => {
 
       createSession(this.lastID, (sessErr, token) => {
         if (sessErr) return res.status(500).json({error: sessErr.message});
+        
+        logSecurityEvent('REGISTER_SUCCESS', req, `New user: ${name}`);
+        
         res.cookie('sfz_session', token, {
           httpOnly: true,
           sameSite: 'Lax',
@@ -170,15 +211,20 @@ app.post('/api/login', authLimiter, (req, res) => {
   if (!name || !password) return res.status(400).json({error: 'Name und Passwort erforderlich'});
 
   db.get(`SELECT * FROM users WHERE name = ?`, [name], (err, user) => {
-    if (err || !user) return res.status(401).json({error: 'User nicht gefunden'});
+    if (err || !user) {
+        logSecurityEvent('LOGIN_FAILED_USER', req, `User not found: ${name}`);
+        return res.status(401).json({error: 'User nicht gefunden'});
+    }
     if (!user.password_hash) return res.status(401).json({error: 'Kein Passwort gesetzt'});
 
     if (!bcrypt.compareSync(password, user.password_hash)) {
+      logSecurityEvent('LOGIN_FAILED_PASS', req, `Wrong password for user: ${name}`);
       return res.status(401).json({error: 'Falsches Passwort'});
     }
 
     createSession(user.id, (sessErr, token) => {
       if (sessErr) return res.status(500).json({error: sessErr.message});
+      logSecurityEvent('LOGIN_SUCCESS', req, `User logged in: ${name}`);
       res.cookie('sfz_session', token, {
         httpOnly: true,
         sameSite: 'Lax',
@@ -196,6 +242,70 @@ app.post('/api/login', authLimiter, (req, res) => {
       });
     });
   });
+});
+
+app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
+  db.all(`SELECT id, name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({error: err.message});
+    res.json(rows);
+  });
+});
+
+app.put('/api/admin/users/:id/role', requireLogin, requireAdmin, (req, res) => {
+  const userId = req.params.id;
+  if (userId == req.user.id) return res.status(403).json({error: 'Cannot change own role'});
+  
+  const {is_admin} = req.body;
+  db.run(`UPDATE users SET is_admin = ? WHERE id = ?`, [is_admin ? 1 : 0, userId], function(err) {
+    if (err) return res.status(500).json({error: err.message});
+    res.json({updated: this.changes});
+  });
+});
+
+app.delete('/api/admin/users/:id', requireLogin, requireAdmin, (req, res) => {
+  const userId = req.params.id;
+  if (userId == req.user.id) return res.status(403).json({error: 'Cannot delete own account'});
+  
+  db.serialize(() => {
+    // 1. Delete sessions
+    db.run(`DELETE FROM sessions WHERE user_id = ?`, [userId]);
+    
+    // 2. Delete listings images
+    db.all(`SELECT image_path, image_paths FROM listings WHERE user_id = ?`, [userId], (err, rows) => {
+      if (!err && rows) {
+        rows.forEach(row => {
+          try {
+            if (row.image_path) {
+               const p = path.join(__dirname, 'public', row.image_path);
+               if (fs.existsSync(p)) fs.unlinkSync(p);
+            }
+            if (row.image_paths) {
+                JSON.parse(row.image_paths).forEach(p => {
+                    const fullP = path.join(__dirname, 'public', p);
+                    if (fs.existsSync(fullP)) fs.unlinkSync(fullP);
+                });
+            }
+          } catch(e) {}
+        });
+      }
+    });
+
+    // 3. Delete listings
+    db.run(`DELETE FROM listings WHERE user_id = ?`, [userId]);
+
+    // 4. Delete user
+    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+        if (err) return res.status(500).json({error: err.message});
+        res.json({deleted: this.changes});
+    });
+  });
+});
+
+app.get('/api/admin/logs', requireLogin, requireAdmin, (req, res) => {
+    db.all(`SELECT * FROM security_logs ORDER BY created_at DESC LIMIT 50`, [], (err, rows) => {
+        if (err) return res.status(500).json({error: err.message});
+        res.json(rows);
+    });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -216,8 +326,12 @@ const upload = multer({
   dest: 'public/uploads/',
   limits: {fileSize: 5 * 1024 * 1024, files: 5},
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Nur Bilder erlaubt'));
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Nur Bilder (JPG, PNG, WEBP) erlaubt'));
+    }
   }
 });
 
@@ -246,7 +360,14 @@ app.get('/api/listings', apiLimiter, requireLogin, (req, res) => {
 
 app.get('/api/users/:id/listings', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.id;
-  db.all(`SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC`, [userId], (err, rows) => {
+  const sql = `
+    SELECT l.*, u.name as author_name, u.grade, u.interests, u.contact as contact
+    FROM listings l 
+    JOIN users u ON l.user_id = u.id 
+    WHERE l.user_id = ? 
+    ORDER BY l.created_at DESC
+  `;
+  db.all(sql, [userId], (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
     res.json(rows);
   });
@@ -269,7 +390,9 @@ app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.userId;
   db.get(`SELECT interests, skills FROM users WHERE id = ?`, [userId], (err, user) => {
     if (err || !user) return res.status(404).json({error: 'User not found'});
-    const keywords = (user.interests + ' ' + user.skills).toLowerCase().split(/[ ,]+/);
+    const interests = user.interests || '';
+    const skills = user.skills || '';
+    const keywords = (interests + ' ' + skills).toLowerCase().split(/[ ,]+/).filter(Boolean);
 
     db.all(`SELECT l.*, u.name as author_name FROM listings l JOIN users u ON l.user_id = u.id WHERE l.user_id != ?`, [userId], (err, rows) => {
       if (err) return res.status(500).json({error: err.message});
@@ -288,6 +411,9 @@ app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
 
 app.post('/api/listings', requireLogin, uploadMaybe, (req, res) => {
   const {title, description, category, tags, type, price, vb} = req.body;
+  if (!title || title.length > 100) return res.status(400).json({error: 'Titel ungültig (max 100 Zeichen)'});
+  if (description && description.length > 2000) return res.status(400).json({error: 'Beschreibung zu lang'});
+
   const files = req.files || [];
   const image_paths = files.map(f => '/uploads/' + f.filename);
   const image_path = image_paths[0] || null;
@@ -318,13 +444,20 @@ app.put('/api/listings/:id', requireLogin, (req, res) => {
 app.delete('/api/listings/:id', requireLogin, (req, res) => {
   const listingId = req.params.id;
 
-  db.get(`SELECT user_id, image_path FROM listings WHERE id = ?`, [listingId], (err, row) => {
+  db.get(`SELECT user_id, image_paths FROM listings WHERE id = ?`, [listingId], (err, row) => {
     if (err || !row) return res.status(404).json({error: 'Listing nicht gefunden'});
     if (row.user_id !== req.user.id && req.user.is_admin !== 1) return res.status(403).json({error: 'Nicht erlaubt'});
 
-    if (row.image_path) {
-      const imgPath = path.join(__dirname, 'public', row.image_path);
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    if (row.image_paths) {
+      try {
+        const paths = JSON.parse(row.image_paths);
+        paths.forEach(p => {
+          const imgPath = path.join(__dirname, 'public', p);
+          if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+        });
+      } catch (e) {
+        console.error('Error parsing image_paths:', e);
+      }
     }
 
     db.run(`DELETE FROM listings WHERE id = ?`, [listingId], function(err) {
@@ -392,6 +525,132 @@ app.get('/api/admin/stats', requireLogin, requireAdmin, (req, res) => {
       db.get(`SELECT COUNT(*) as bugs FROM bugs`, [], (err, bugs) => {
         res.json({users: users.users, listings: listings.listings, bugs: bugs.bugs});
       });
+    });
+  });
+});
+
+app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
+    const sql = `
+        SELECT id, name, grade, interests, skills, contact, is_admin, created_at 
+        FROM users 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [], (err, rows) => {
+        if (err) return res.status(500).json({error: err.message});
+        res.json(rows);
+    });
+});
+
+app.put('/api/admin/users/:id/role', requireLogin, requireAdmin, (req, res) => {
+    const userId = req.params.id;
+    const { is_admin } = req.body;
+    
+    if (userId == req.user.id) {
+       return res.status(400).json({ error: 'Du kannst deinen eigenen Status nicht ändern.' });
+    }
+  
+    const sql = `UPDATE users SET is_admin = ? WHERE id = ?`;
+    db.run(sql, [is_admin ? 1 : 0, userId], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+});
+  
+app.delete('/api/admin/users/:id', requireLogin, requireAdmin, (req, res) => {
+    const userId = req.params.id;
+    
+    if (userId == req.user.id) {
+       return res.status(400).json({ error: 'Du kannst dich nicht selbst löschen.' });
+    }
+  
+    // 1. Get images to delete
+    db.all(`SELECT image_paths FROM listings WHERE user_id = ?`, [userId], (err, rows) => {
+        if (!err && rows) {
+            rows.forEach(row => {
+                if (row.image_paths) {
+                    try {
+                        const paths = JSON.parse(row.image_paths);
+                        paths.forEach(p => {
+                            const imgPath = path.join(__dirname, 'public', p);
+                            if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+                        });
+                    } catch (e) {
+                         console.error('Error cleaning up images for user deletion:', e);
+                    }
+                }
+            });
+        }
+
+        // 2. Delete Listings
+        db.run(`DELETE FROM listings WHERE user_id = ?`, [userId], (err) => {
+            if (err) console.error("Error deleting listings", err);
+            
+            // 3. Delete Sessions
+            db.run(`DELETE FROM sessions WHERE user_id = ?`, [userId], (err) => {
+                if (err) console.error("Error deleting sessions", err);
+
+                // 4. Delete User
+                db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true });
+                });
+            });
+        });
+    });
+});
+
+// Admin User Management
+app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
+  db.all(`SELECT id, name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({error: err.message});
+    res.json(rows);
+  });
+});
+
+app.put('/api/admin/users/:id/role', requireLogin, requireAdmin, (req, res) => {
+  const userId = req.params.id;
+  const {is_admin} = req.body;
+  if (userId == req.user.id) return res.status(403).json({error: 'Cannot update own role'});
+
+  db.run(`UPDATE users SET is_admin = ? WHERE id = ?`, [is_admin ? 1 : 0, userId], function(err) {
+    if (err) return res.status(500).json({error: err.message});
+    res.json({updated: this.changes});
+  });
+});
+
+app.delete('/api/admin/users/:id', requireLogin, requireAdmin, (req, res) => {
+  const userId = req.params.id;
+  if (userId == req.user.id) return res.status(403).json({error: 'Cannot delete own account'});
+
+  // Cascade delete logic (listings, images, sessions) will be complex, doing simple delete for now
+  // Real implementation should clean up images from disk too
+  db.serialize(() => {
+    db.run(`DELETE FROM sessions WHERE user_id = ?`, [userId]);
+    
+    // Clean up images
+    db.all(`SELECT image_path, image_paths FROM listings WHERE user_id = ?`, [userId], (err, rows) => {
+      if (!err && rows) {
+        rows.forEach(row => {
+          if (row.image_path) {
+             const p = path.join(__dirname, 'public', row.image_path);
+             if (fs.existsSync(p)) fs.unlinkSync(p);
+          }
+          if (row.image_paths) {
+            try {
+              JSON.parse(row.image_paths).forEach(p => {
+                 const fullP = path.join(__dirname, 'public', p);
+                 if (fs.existsSync(fullP)) fs.unlinkSync(fullP);
+              });
+            } catch(e) {}
+          }
+        });
+      }
+    });
+
+    db.run(`DELETE FROM listings WHERE user_id = ?`, [userId]);
+    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+        if (err) return res.status(500).json({error: err.message});
+        res.json({deleted: this.changes});
     });
   });
 });

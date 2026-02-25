@@ -3,6 +3,17 @@ let currentUser = JSON.parse(localStorage.getItem('sfz_user') || 'null');
 let allListings = [];
 let allUsers = [];
 
+// Helper
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
@@ -50,7 +61,7 @@ async function initAuth() {
             currentUser = fresh;
             localStorage.setItem('sfz_user', JSON.stringify(fresh));
             userMenu.innerHTML = `
-                <span>Hallo, <strong>${currentUser.name}</strong></span>
+                <span>Hallo, <strong>${escapeHtml(currentUser.name)}</strong></span>
                 <button onclick="logout()" class="nav-btn">Abmelden</button>
             `;
             document.getElementById('matchCard').style.display = 'block';
@@ -73,12 +84,17 @@ function logout() {
     });
 }
 
+async function apiCall(url, method = 'POST', data = null) {
+    const options = {
+        method,
+        headers: {'Content-Type': 'application/json'}
+    };
+    if (data) options.body = JSON.stringify(data);
+    return fetch(url, options);
+}
+
 async function apiPost(url, data) {
-    return fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    });
+    return apiCall(url, 'POST', data);
 }
 
 async function loadData() {
@@ -92,7 +108,7 @@ async function loadData() {
             fetch('/api/listings'),
             fetch('/api/users')
         ]);
-        if (!listingsRes.ok) {
+        if (!listingsRes.ok || !usersRes.ok) {
             currentUser = null;
             localStorage.removeItem('sfz_user');
             document.getElementById('authModal').classList.add('active');
@@ -117,11 +133,16 @@ async function loadRandom() {
     try {
         const res = await fetch('/api/discover');
         const items = await res.json();
+        
+        items.forEach(r => {
+            if (!allListings.find(l => l.id === r.id)) allListings.push(r);
+        });
+
         const container = document.getElementById('randomListings');
         container.innerHTML = items.map(item => `
             <div class="mini-item" onclick="showDetail(${item.id})">
-                <h4>${item.title}</h4>
-                <div class="meta">${item.author_name} • ${item.category}</div>
+                <h4>${escapeHtml(item.title)}</h4>
+                <div class="meta">${escapeHtml(item.author_name)} • ${escapeHtml(item.category)}</div>
             </div>
         `).join('');
     } catch (err) {
@@ -134,6 +155,11 @@ async function loadMatches() {
     try {
         const res = await fetch(`/api/match/${currentUser.id}`);
         const items = await res.json();
+        
+        items.forEach(r => {
+            if (!allListings.find(l => l.id === r.id)) allListings.push(r);
+        });
+
         const container = document.getElementById('matchListings');
         if (items.length === 0) {
             container.innerHTML = '<p style="color: var(--text-light);">Noch keine passenden Anzeigen gefunden. Erstelle dein Profil mit Interessen!</p>';
@@ -141,7 +167,7 @@ async function loadMatches() {
         }
         container.innerHTML = items.map(item => `
             <div class="mini-item" onclick="showDetail(${item.id})">
-                <h4>${item.title}</h4>
+                <h4>${escapeHtml(item.title)}</h4>
                 <div class="meta">Match: ${item.score} gemeinsame Tags</div>
             </div>
         `).join('');
@@ -153,7 +179,7 @@ async function loadMatches() {
 function renderActiveUsers() {
     const container = document.getElementById('activeUsers');
     container.innerHTML = allUsers.slice(0, 8).map(user => `
-        <span class="user-chip" onclick="showUserProfile(${user.id})">${user.name}</span>
+        <span class="user-chip" onclick="showUserProfile(${user.id})">${escapeHtml(user.name)}</span>
     `).join('');
 }
 
@@ -161,14 +187,28 @@ function renderImages(item, large=false){
     try {
         const imgs = item.image_paths ? JSON.parse(item.image_paths) : (item.image_path ? [item.image_path] : []);
         if (!imgs || imgs.length === 0) return '';
-        const cls = large ? 'listing-images large' : 'listing-images';
-        return `<div class="${cls}">${imgs.map(src => `<img src="${src}" alt="Listing" />`).join('')}</div>`;
+        
+        if (large) {
+            return `
+                <div class="detail-image-grid">
+                    ${imgs.map(src => `<img src="${src}" class="detail-img" alt="Anzeigenbild" onclick="openLightbox('${src}')">`).join('')}
+                </div>
+            `;
+        } else {
+            const extraBadge = imgs.length > 1 ? `<div class="img-badge">+${imgs.length - 1}</div>` : '';
+            return `
+                <div class="card-image-wrapper">
+                    <img src="${imgs[0]}" class="card-img" alt="Coverbild">
+                    ${extraBadge}
+                </div>
+            `;
+        }
     } catch { return ''; }
 }
 
 function formatPrice(price, vb) {
     if (!price) return '';
-    let p = price;
+    let p = escapeHtml(price);
     if (vb == 1 || vb === true) p += ' VB';
     return `<span style="color:var(--primary);font-weight:600">${p}</span>`;
 }
@@ -183,18 +223,18 @@ function renderListings(filter) {
     container.innerHTML = filtered.map(item => `
         <div class="card" onclick="showDetail(${item.id})">
             <div class="card-header">
-                <span class="card-type ${item.type}">${item.type}</span>
-                <span style="font-size:0.8rem;color:var(--text-light)">${item.category}</span>
+                <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
+                <span style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)}</span>
             </div>
-            <h3>${item.title}</h3>
-            <p>${item.description?.substring(0, 100)}...</p>
-            <div class="listing-images">${renderImages(item)}</div>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
+            ${renderImages(item)}
             <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
             <div class="tags">
-                ${item.tags?.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') || ''}
+                ${item.tags?.split(',').map(t => `<span class="tag">${escapeHtml(t.trim())}</span>`).join('') || ''}
             </div>
             <div class="card-footer">
-                <span>${item.author_name}</span>
+                <span>${escapeHtml(item.author_name)}</span>
                 <span>${new Date(item.created_at).toLocaleDateString()}</span>
             </div>
         </div>
@@ -205,11 +245,11 @@ function renderPeople() {
     const container = document.getElementById('peopleGrid');
     container.innerHTML = allUsers.map(user => `
         <div class="person-card" onclick="showUserProfile(${user.id})">
-            <div class="person-avatar">${user.name.charAt(0).toUpperCase()}</div>
-            <h3>${user.name}</h3>
-            <div class="grade">${user.grade || 'SFZ'}</div>
+            <div class="person-avatar">${escapeHtml(user.name.charAt(0).toUpperCase())}</div>
+            <h3>${escapeHtml(user.name)}</h3>
+            <div class="grade">${escapeHtml(user.grade)}</div>
             <div class="person-skills">
-                ${user.interests?.substring(0, 30) || 'Keine Interessen angegeben'}...
+                ${escapeHtml(user.interests?.substring(0, 30))}...
             </div>
         </div>
     `).join('');
@@ -233,6 +273,7 @@ function setupEventListeners() {
     document.getElementById('registerForm').addEventListener('submit', doRegister);
     document.getElementById('createForm').addEventListener('submit', createListing);
     document.getElementById('bugForm').addEventListener('submit', submitBug);
+    document.getElementById('editForm').addEventListener('submit', saveEdit);
 
     const bugBtn = document.getElementById('bugBtn');
     if (bugBtn) bugBtn.addEventListener('click', () => document.getElementById('bugModal').classList.add('active'));
@@ -258,6 +299,11 @@ function setupEventListeners() {
             document.getElementById(tab).classList.add('active');
         });
     });
+}
+
+function openLightbox(src) {
+    document.getElementById('lightboxImage').src = src;
+    document.getElementById('lightboxModal').classList.add('active');
 }
 
 async function doLogin(e) {
@@ -323,6 +369,13 @@ async function doSearch() {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
         const results = await res.json();
 
+        // Merge search results into allListings so showDetail can find them
+        results.forEach(r => {
+            if (!allListings.find(l => l.id === r.id)) {
+                allListings.push(r);
+            }
+        });
+
         switchView('listings');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('[data-view="listings"]').classList.add('active');
@@ -336,15 +389,15 @@ async function doSearch() {
         container.innerHTML = results.map(item => `
             <div class="card" onclick="showDetail(${item.id})">
                 <div class="card-header">
-                    <span class="card-type ${item.type}">${item.type}</span>
-                    <span style="font-size:0.8rem;color:var(--text-light)">${item.category}</span>
+                    <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
+                    <span style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)}</span>
                 </div>
-                <h3>${item.title}</h3>
-                <p>${item.description?.substring(0, 100)}...</p>
-                <div class="listing-images">${renderImages(item)}</div>
+                <h3>${escapeHtml(item.title)}</h3>
+                <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
+                ${renderImages(item)}
             <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
                 <div class="card-footer">
-                    <span>${item.author_name}</span>
+                    <span>${escapeHtml(item.author_name)}</span>
                     <span>🔍 Suchtreffer</span>
                 </div>
             </div>
@@ -397,24 +450,24 @@ function showDetail(id) {
 
     const priceDisplay = item.price ? `
         <div style="background:linear-gradient(135deg, var(--primary), var(--secondary));color:white;padding:16px;border-radius:8px;margin:20px 0">
-            <strong>Preis:</strong> ${item.price}${item.vb == 1 ? ' (VB)' : ''}
+            <strong>Preis:</strong> ${escapeHtml(item.price)}${item.vb == 1 ? ' (VB)' : ''}
         </div>
     ` : '';
 
     const content = document.getElementById('detailContent');
     content.innerHTML = `
-        <span class="card-type ${item.type}" style="margin-bottom:16px;display:inline-block">${item.type}</span>
-        <h2>${item.title}</h2>
-        <p style="color:var(--text-light);margin:8px 0">${item.category} • Von ${item.author_name}</p>
+        <span class="card-type ${item.type}" style="margin-bottom:16px;display:inline-block">${escapeHtml(item.type)}</span>
+        <h2>${escapeHtml(item.title)}</h2>
+        <p style="color:var(--text-light);margin:8px 0">${escapeHtml(item.category)} • Von ${escapeHtml(item.author_name)}</p>
         <hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">
-        <p style="line-height:1.8">${item.description?.replace(/\n/g, '<br>')}</p>
+        <p style="line-height:1.8">${escapeHtml(item.description).replace(/\n/g, '<br>')}</p>
         ${renderImages(item, true)}
         ${priceDisplay}
         <div class="tags" style="margin:20px 0">
-            ${item.tags?.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') || 'Keine Tags'}
+            ${item.tags?.split(',').map(t => `<span class="tag">${escapeHtml(t.trim())}</span>`).join('') || 'Keine Tags'}
         </div>
         <div style="background:var(--bg);padding:16px;border-radius:8px">
-            <strong>Kontakt:</strong> ${item.contact || 'Über Profil'}
+            <strong>Kontakt:</strong> ${escapeHtml(item.contact) || 'Über Profil'}
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
@@ -427,20 +480,20 @@ function showUserProfile(id) {
     const content = document.getElementById('detailContent');
     content.innerHTML = `
         <div style="text-align:center;margin-bottom:20px">
-            <div class="person-avatar" style="width:80px;height:80px;font-size:2rem;margin:0 auto 16px">${user.name.charAt(0).toUpperCase()}</div>
-            <h2>${user.name}</h2>
-            <p style="color:var(--text-light)">${user.grade || 'SFZ Mitglied'}</p>
+            <div class="person-avatar" style="width:80px;height:80px;font-size:2rem;margin:0 auto 16px">${escapeHtml(user.name.charAt(0).toUpperCase())}</div>
+            <h2>${escapeHtml(user.name)}</h2>
+            <p style="color:var(--text-light)">${escapeHtml(user.grade) || 'SFZ Mitglied'}</p>
         </div>
         <div style="margin:20px 0">
             <strong>Interessen:</strong><br>
-            <p style="margin:8px 0;color:var(--text)">${user.interests || 'Keine angegeben'}</p>
+            <p style="margin:8px 0;color:var(--text)">${escapeHtml(user.interests) || 'Keine angegeben'}</p>
         </div>
         <div style="margin:20px 0">
             <strong>Skills:</strong><br>
-            <p style="margin:8px 0;color:var(--text)">${user.skills || 'Keine angegeben'}</p>
+            <p style="margin:8px 0;color:var(--text)">${escapeHtml(user.skills) || 'Keine angegeben'}</p>
         </div>
         <div style="background:linear-gradient(135deg, var(--primary), var(--secondary));color:white;padding:16px;border-radius:8px;margin-top:20px">
-            <strong>Kontakt:</strong> ${user.contact}
+            <strong>Kontakt:</strong> ${escapeHtml(user.contact)}
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
@@ -450,31 +503,92 @@ async function loadAccount() {
     if (!currentUser) return;
     const container = document.getElementById('accountInfo');
     container.innerHTML = `
-        <strong>Name:</strong> ${currentUser.name}<br>
-        <strong>Klasse:</strong> ${currentUser.grade || '-'}<br>
-        <strong>Interessen:</strong> ${currentUser.interests || '-'}<br>
-        <strong>Skills:</strong> ${currentUser.skills || '-'}<br>
-        <strong>Kontakt:</strong> ${currentUser.contact || '-'}
+        <strong>Name:</strong> ${escapeHtml(currentUser.name)}<br>
+        <strong>Klasse:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
+        <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
+        <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
+        <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}
     `;
 
     try {
         const res = await fetch(`/api/users/${currentUser.id}/listings`);
         const items = await res.json();
+        
+        items.forEach(r => {
+            if (!allListings.find(l => l.id === r.id)) allListings.push(r);
+        });
+
         document.getElementById('myListings').innerHTML = items.map(item => `
-            <div class="card" onclick="showDetail(${item.id})">
+            <div class="card">
                 <div class="card-header">
-                    <span class="card-type ${item.type}">${item.type}</span>
-                    <span style="font-size:0.8rem;color:var(--text-light)">${item.category}</span>
+                    <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
+                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px" onclick="event.stopPropagation(); startEdit(${item.id})">✏️</button>
+                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5" onclick="event.stopPropagation(); deleteListing(${item.id})">🗑️</button>
+                    <span style="font-size:0.8rem;color:var(--text-light);margin-left:auto">${escapeHtml(item.category)}</span>
                 </div>
-                <h3>${item.title}</h3>
-                <p>${item.description?.substring(0, 100)}...</p>
-                <div class="listing-images">${renderImages(item)}</div>
-            <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
+                <h3>${escapeHtml(item.title)}</h3>
+                <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
+                ${renderImages(item)}
+                <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
             </div>
         `).join('') || '<p style="color:var(--text-light)">Noch keine Anzeigen.</p>';
     } catch (err) {
         console.error('Account load error:', err);
     }
+}
+
+async function deleteListing(id) {
+    if (!confirm('Anzeige wirklich löschen?')) return;
+    try {
+        const res = await apiCall(`/api/listings/${id}`, 'DELETE');
+        if (res.ok) {
+            loadAccount();
+            loadData();
+        } else {
+            alert('Fehler beim Löschen');
+        }
+    } catch (err) { console.error(err); }
+}
+
+function startEdit(id) {
+    const item = allListings.find(l => l.id === id);
+    if (!item) return;
+
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editTitle').value = item.title;
+    document.getElementById('editType').value = item.type;
+    document.getElementById('editCategory').value = item.category;
+    document.getElementById('editDescription').value = item.description;
+    document.getElementById('editPrice').value = item.price;
+    document.getElementById('editVb').checked = item.vb == 1;
+    document.getElementById('editTags').value = item.tags;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function saveEdit(e) {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const data = {
+        title: document.getElementById('editTitle').value,
+        type: document.getElementById('editType').value,
+        category: document.getElementById('editCategory').value,
+        description: document.getElementById('editDescription').value,
+        price: document.getElementById('editPrice').value,
+        vb: document.getElementById('editVb').checked,
+        tags: document.getElementById('editTags').value
+    };
+
+    try {
+        const res = await apiCall(`/api/listings/${id}`, 'PUT', data);
+        if (res.ok) {
+            document.getElementById('editModal').classList.remove('active');
+            loadAccount();
+            loadData();
+        } else {
+            alert('Fehler beim Speichern');
+        }
+    } catch (err) { console.error(err); }
 }
 
 // Bug Report
