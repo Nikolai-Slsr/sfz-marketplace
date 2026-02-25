@@ -64,14 +64,16 @@ async function initAuth() {
             const fresh = await res.json();
             currentUser = fresh;
             localStorage.setItem('sfz_user', JSON.stringify(fresh));
+            // Prefer full_name for display, fallback to name
+            const displayName = escapeHtml(currentUser.full_name || currentUser.name);
             userMenu.innerHTML = `
-                <span>Hallo, <strong>${escapeHtml(currentUser.name)}</strong></span>
+                <span>Hallo, <strong>${displayName}</strong></span>
                 <button onclick="logout()" class="nav-btn">Abmelden</button>
             `;
             document.getElementById('matchCard').style.display = 'block';
             document.getElementById('matchListings').classList.add('mini-grid');
             document.getElementById('accountBtn').style.display = 'inline-block';
-            document.getElementById('welcomeTitle').innerText = 'Moin, ' + escapeHtml(currentUser.name.split(' ')[0]) + '!';
+            document.getElementById('welcomeTitle').innerText = 'Moin, ' + displayName.split(' ')[0] + '!';
             document.getElementById('welcomeText').innerText = 'Schön, dass du da bist. Hier ist dein Update.';
             document.getElementById('quickActions').style.display = 'flex';
             return;
@@ -209,7 +211,7 @@ async function loadMatches() {
 function renderActiveUsers() {
     const container = document.getElementById('activeUsers');
     container.innerHTML = allUsers.slice(0, 8).map(user => `
-        <span class="user-chip" onclick="showUserProfile(${user.id})">${escapeHtml(user.name)}</span>
+        <span class="user-chip" onclick="showUserProfile(${user.id})">${escapeHtml(user.full_name || user.name)}</span>
     `).join('');
 }
 
@@ -284,8 +286,8 @@ function renderPeople() {
     const container = document.getElementById('peopleGrid');
     container.innerHTML = allUsers.map(user => `
         <div class="person-card" onclick="showUserProfile(${user.id})">
-            <div class="person-avatar">${escapeHtml(user.name.charAt(0).toUpperCase())}</div>
-            <h3>${escapeHtml(user.name)}</h3>
+            <div class="person-avatar">${escapeHtml((user.full_name || user.name).charAt(0).toUpperCase())}</div>
+            <h3>${escapeHtml(user.full_name || user.name)}</h3>
             <div class="grade">${escapeHtml(user.grade)}</div>
             <div class="person-skills">
                 ${escapeHtml(user.interests?.substring(0, 30))}...
@@ -381,6 +383,7 @@ async function doRegister(e) {
     e.preventDefault();
     const data = {
         name: document.getElementById('regName').value,
+        full_name: document.getElementById('regFullName').value,
         password: document.getElementById('regPassword').value,
         grade: document.getElementById('regGrade').value,
         interests: document.getElementById('regInterests').value,
@@ -524,12 +527,13 @@ function showDetail(id) {
 function showUserProfile(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
+    const displayName = escapeHtml(user.full_name || user.name);
 
     const content = document.getElementById('detailContent');
     content.innerHTML = `
         <div style="text-align:center;margin-bottom:20px">
-            <div class="person-avatar" style="width:80px;height:80px;font-size:2rem;margin:0 auto 16px">${escapeHtml(user.name.charAt(0).toUpperCase())}</div>
-            <h2>${escapeHtml(user.name)}</h2>
+            <div class="person-avatar" style="width:80px;height:80px;font-size:2rem;margin:0 auto 16px">${displayName.charAt(0).toUpperCase()}</div>
+            <h2>${displayName}</h2>
             <p style="color:var(--text-light)">${escapeHtml(user.grade) || 'SFZ Mitglied'}</p>
         </div>
         <div style="margin:20px 0">
@@ -559,7 +563,8 @@ async function loadAccount() {
     container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
-                <strong>Name:</strong> ${escapeHtml(currentUser.name)}<br>
+                <strong>Benutzername:</strong> ${escapeHtml(currentUser.name)}<br>
+                <strong>Anzeigename:</strong> ${escapeHtml(currentUser.full_name || currentUser.name)}<br>
                 <strong>Status:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
                 <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
                 <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
@@ -598,6 +603,8 @@ async function loadAccount() {
 
 function startProfileEdit() {
     if (!currentUser) return;
+    document.getElementById('profName').value = currentUser.name || '';
+    document.getElementById('profFullName').value = currentUser.full_name || '';
     document.getElementById('profGrade').value = currentUser.grade || '';
     document.getElementById('profInterests').value = currentUser.interests || '';
     document.getElementById('profSkills').value = currentUser.skills || '';
@@ -615,6 +622,8 @@ async function saveProfile(e) {
     e.preventDefault();
     const checkbox = document.getElementById('profHideContact');
     const data = {
+        name: document.getElementById('profName').value,
+        full_name: document.getElementById('profFullName').value,
         grade: document.getElementById('profGrade').value,
         interests: document.getElementById('profInterests').value,
         skills: document.getElementById('profSkills').value,
@@ -634,7 +643,8 @@ async function saveProfile(e) {
             // Reload discovery if interests changed
             loadData();
         } else {
-            alert('Fehler beim Speichern');
+            const errorData = await res.json();
+            alert(errorData.error || 'Fehler beim Speichern');
         }
     } catch (err) { console.error(err); }
 }

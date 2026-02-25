@@ -64,6 +64,7 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    full_name TEXT,
     grade TEXT,
     interests TEXT,
     skills TEXT,
@@ -130,12 +131,15 @@ db.serialize(() => {
     }
   });
 
-  // Users Migration for hide_contact
+  // Users Migration for hide_contact and full_name
   db.all("PRAGMA table_info(users)", (err, rows) => {
     if (err) return;
     const columns = rows.map(r => r.name);
     if (!columns.includes('hide_contact')) {
       db.run("ALTER TABLE users ADD COLUMN hide_contact INTEGER DEFAULT 0");
+    }
+    if (!columns.includes('full_name')) {
+      db.run("ALTER TABLE users ADD COLUMN full_name TEXT");
     }
   });
 
@@ -172,7 +176,7 @@ function requireLogin(req, res, next) {
   if (!token) return res.status(401).json({error: 'Nicht eingeloggt'});
 
   const sql = `
-    SELECT u.id, u.name, u.grade, u.interests, u.skills, u.contact, u.hide_contact, u.is_admin
+    SELECT u.id, u.name, u.full_name, u.grade, u.interests, u.skills, u.contact, u.hide_contact, u.is_admin
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ? AND s.expires_at > datetime('now')
@@ -192,8 +196,9 @@ function requireAdmin(req, res, next) {
 
 // Auth
 app.post('/api/register', authLimiter, (req, res) => {
-  const {name, grade, interests, skills, contact, password, inviteCode} = req.body;
-  if (!name || !password) return res.status(400).json({error: 'Name und Passwort erforderlich'});
+  // 'name' is the username (login), 'full_name' is the display name
+  const {name, full_name, grade, interests, skills, contact, password, inviteCode} = req.body;
+  if (!name || !password) return res.status(400).json({error: 'Benutzername und Passwort erforderlich'});
 
   if (!inviteCode || inviteCode !== INVITE_CODE) {
     logSecurityEvent('REGISTER_FAIL_INVITE', req, `Invalid invite code: ${inviteCode}`);
@@ -203,12 +208,12 @@ app.post('/api/register', authLimiter, (req, res) => {
   db.get(`SELECT id FROM users WHERE name = ?`, [name], (err, existing) => {
     if (existing) {
         logSecurityEvent('REGISTER_FAIL_EXISTS', req, `Username taken: ${name}`);
-        return res.status(409).json({error: 'Name bereits vergeben'});
+        return res.status(409).json({error: 'Benutzername bereits vergeben'});
     }
 
     const password_hash = bcrypt.hashSync(password, 10);
-    const sql = `INSERT INTO users (name, grade, interests, skills, contact, password_hash) VALUES (?,?,?,?,?,?)`;
-    db.run(sql, [name, grade, interests, skills, contact, password_hash], function(err) {
+    const sql = `INSERT INTO users (name, full_name, grade, interests, skills, contact, password_hash) VALUES (?,?,?,?,?,?,?)`;
+    db.run(sql, [name, full_name || name, grade, interests, skills, contact, password_hash], function(err) {
       if (err) return res.status(500).json({error: err.message});
 
       createSession(this.lastID, (sessErr, token) => {
@@ -222,7 +227,7 @@ app.post('/api/register', authLimiter, (req, res) => {
           secure: COOKIE_SECURE,
           maxAge: 30 * 24 * 60 * 60 * 1000
         });
-        res.json({id: this.lastID, name, grade, interests, skills, contact, is_admin: 0});
+        res.json({id: this.lastID, name, full_name: full_name || name, grade, interests, skills, contact, is_admin: 0});
       });
     });
   });
@@ -256,6 +261,7 @@ app.post('/api/login', authLimiter, (req, res) => {
       res.json({
         id: user.id,
         name: user.name,
+        full_name: user.full_name,
         grade: user.grade,
         interests: user.interests,
         skills: user.skills,
@@ -269,7 +275,7 @@ app.post('/api/login', authLimiter, (req, res) => {
 
 // Admin User Management - Uses actual contact info, admins can see everything
 app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
-  db.all(`SELECT id, name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
+  db.all(`SELECT id, name, full_name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
     res.json(rows);
   });
@@ -369,10 +375,10 @@ if (!fs.existsSync('public/uploads')) {
 }
 
 // Listings (privat)
-// Updated to hide contact if requested
+// Updated to use full_name as author_name (with fallback to name)
 app.get('/api/listings', apiLimiter, requireLogin, (req, res) => {
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests,
+    SELECT l.*, COALESCE(u.full_name, u.name) as author_name, u.grade, u.interests,
     CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 
@@ -384,11 +390,11 @@ app.get('/api/listings', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
-// Updated to hide contact if requested
+// Updated to use full_name
 app.get('/api/users/:id/listings', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.id;
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests,
+    SELECT l.*, COALESCE(u.full_name, u.name) as author_name, u.grade, u.interests,
     CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 
@@ -401,10 +407,10 @@ app.get('/api/users/:id/listings', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
-// Updated to hide contact if requested
+// Updated to use full_name
 app.get('/api/discover', apiLimiter, requireLogin, (req, res) => {
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests, u.skills,
+    SELECT l.*, COALESCE(u.full_name, u.name) as author_name, u.grade, u.interests, u.skills,
     CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id
@@ -416,7 +422,7 @@ app.get('/api/discover', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
-// Updated to hide contact if requested
+// Updated to use full_name
 app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.userId;
   db.get(`SELECT interests, skills FROM users WHERE id = ?`, [userId], (err, user) => {
@@ -425,7 +431,7 @@ app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
     const skills = user.skills || '';
     const keywords = (interests + ' ' + skills).toLowerCase().split(/[ ,]+/).filter(Boolean);
 
-    db.all(`SELECT l.*, u.name as author_name FROM listings l JOIN users u ON l.user_id = u.id WHERE l.user_id != ?`, [userId], (err, rows) => {
+    db.all(`SELECT l.*, COALESCE(u.full_name, u.name) as author_name FROM listings l JOIN users u ON l.user_id = u.id WHERE l.user_id != ?`, [userId], (err, rows) => {
       if (err) return res.status(500).json({error: err.message});
 
       const scored = rows.map(row => {
@@ -498,10 +504,10 @@ app.delete('/api/listings/:id', requireLogin, (req, res) => {
   });
 });
 
-// Updated to hide contact if requested
+// Updated to use full_name
 app.get('/api/users', apiLimiter, requireLogin, (req, res) => {
   const sql = `
-    SELECT id, name, grade, interests, skills, is_admin, created_at,
+    SELECT id, COALESCE(full_name, name) as name, name as username, grade, interests, skills, is_admin, created_at,
     CASE WHEN hide_contact = 1 THEN NULL ELSE contact END as contact
     FROM users 
     ORDER BY created_at DESC
@@ -512,24 +518,42 @@ app.get('/api/users', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
+// Update Profile including name (username) and full_name
 app.put('/api/me', requireLogin, (req, res) => {
-    const {grade, interests, skills, contact, hide_contact} = req.body;
-    const sql = `UPDATE users SET grade = ?, interests = ?, skills = ?, contact = ?, hide_contact = ? WHERE id = ?`;
-    db.run(sql, [grade, interests, skills, contact, hide_contact ? 1 : 0, req.user.id], function(err) {
-        if (err) return res.status(500).json({error: err.message});
-        
-        // Return fresh user object for frontend update
-        db.get(`SELECT id, name, grade, interests, skills, contact, hide_contact, is_admin FROM users WHERE id = ?`, [req.user.id], (e, row) => {
-             res.json(row);
+    const {name, full_name, grade, interests, skills, contact, hide_contact} = req.body;
+    
+    // Check if new username (name) is taken (only if changed)
+    if (name && name !== req.user.name) {
+        db.get(`SELECT id FROM users WHERE name = ?`, [name], (err, existing) => {
+             if (existing) {
+                 return res.status(409).json({error: 'Benutzername bereits vergeben'});
+             }
+             performUpdate();
         });
-    });
+    } else {
+        performUpdate();
+    }
+
+    function performUpdate() {
+        const sql = `UPDATE users SET name = ?, full_name = ?, grade = ?, interests = ?, skills = ?, contact = ?, hide_contact = ? WHERE id = ?`;
+        // if name is not provided, keep old name
+        const newName = name || req.user.name;
+        db.run(sql, [newName, full_name, grade, interests, skills, contact, hide_contact ? 1 : 0, req.user.id], function(err) {
+            if (err) return res.status(500).json({error: err.message});
+            
+            // Return fresh user object
+            db.get(`SELECT id, name, full_name, grade, interests, skills, contact, hide_contact, is_admin FROM users WHERE id = ?`, [req.user.id], (e, row) => {
+                 res.json(row);
+            });
+        });
+    }
 });
 
-// Updated to hide contact if requested
+// Updated to use full_name
 app.get('/api/search', apiLimiter, requireLogin, (req, res) => {
   const {q} = req.query;
   const sql = `
-    SELECT l.*, u.name as author_name,
+    SELECT l.*, COALESCE(u.full_name, u.name) as author_name,
     CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 

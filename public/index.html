@@ -165,7 +165,7 @@
                 <div id="loginTab" class="tab-panel active">
                     <form id="authForm">
                         <div class="form-group">
-                            <label>Name</label>
+                            <label>Benutzername</label>
                             <input type="text" id="loginName" required>
                         </div>
                         <div class="form-group">
@@ -179,8 +179,12 @@
                 <div id="registerTab" class="tab-panel">
                     <form id="registerForm">
                         <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" id="regName" required>
+                            <label>Benutzername (Login)</label>
+                            <input type="text" id="regName" required placeholder="z.B. mustermax">
+                        </div>
+                        <div class="form-group">
+                            <label>Anzeigename (öffentlich)</label>
+                            <input type="text" id="regFullName" placeholder="z.B. Max Mustermann">
                         </div>
                         <div class="form-group">
                             <label>Passwort</label>
@@ -292,6 +296,14 @@
                 <h2>Profil bearbeiten</h2>
                 <form id="editProfileForm">
                     <div class="form-group">
+                        <label>Benutzername</label>
+                        <input type="text" id="profName">
+                    </div>
+                    <div class="form-group">
+                        <label>Anzeigename</label>
+                        <input type="text" id="profFullName" placeholder="z.B. Max Mustermann">
+                    </div>
+                    <div class="form-group">
                         <label>Status / Klasse</label>
                         <input type="text" id="profGrade">
                     </div>
@@ -352,6 +364,6 @@
     </div>
 
     <!-- Force cache reload with version parameter -->
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>
