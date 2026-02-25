@@ -803,3 +803,79 @@ nav {
     border: 1px solid var(--border);
     white-space: nowrap;
 }
+
+
+/* --- Mobile Fixes --- */
+@media (max-width: 768px) {
+    /* Fullscreen Modal auf dem Handy */
+    #detailModal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Detail View (Anzeigen) */
+    .detail-container {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        height: 100%;
+    }
+    .detail-main {
+        padding: 20px;
+        max-height: none;
+        overflow-y: visible;
+    }
+    .detail-sidebar {
+        padding: 20px;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        max-height: none;
+        overflow-y: visible;
+    }
+    
+    /* Profile View (überschreibt die Inline-Styles) */
+    #detailContent > div[style*="padding: 40px"] {
+        padding: 20px !important;
+        overflow-y: auto;
+        height: 100%;
+    }
+    
+    /* Typografie & Avatare fürs Handy skalieren */
+    h1[style*="font-size:2.25rem"], 
+    h2[style*="font-size:2.5rem"] {
+        font-size: 1.75rem !important;
+    }
+    
+    .person-avatar[style*="width:110px"] {
+        width: 80px !important;
+        height: 80px !important;
+        font-size: 2rem !important;
+        margin-bottom: 16px !important;
+    }
+    
+    /* Info Cards Grid (Profile) zwingend untereinander */
+    div[style*="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))"] {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    
+    /* Contact Hero Box (Profile) Padding reduzieren */
+    div[style*="padding:48px"] {
+        padding: 24px !important;
+    }
+    
+    div[style*="font-size:2rem"] {
+        font-size: 1.4rem !important;
+    }
+    
+    /* Close Button für Mobile fest am unteren Rand */
+    .btn-secondary[style*="margin-top:48px"] {
+        margin-top: 24px !important;
+        width: 100% !important;
+    }
+}
