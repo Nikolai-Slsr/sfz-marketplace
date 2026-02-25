@@ -679,3 +679,127 @@ nav {
 .category-badge.cat-kunst { background: #fef08a; color: #854d0e; border-color: #fde047; }
 .category-badge.cat-gesell { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
 .category-badge.cat-default { background: var(--bg); color: var(--text-light); border-color: var(--border); }
+
+
+/* --- Detail Modal Overhaul --- */
+#detailModal .modal-content {
+    max-width: 950px;
+    width: 95%;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+    box-shadow: var(--shadow-lg);
+}
+
+.detail-container {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    .detail-container {
+        grid-template-columns: 1.6fr 1fr;
+    }
+}
+
+.detail-main {
+    padding: 40px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.detail-sidebar {
+    padding: 40px;
+    background: #f1f5f9;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.detail-price-box {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 24px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+}
+
+.detail-author-card {
+    background: white;
+    padding: 24px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.detail-contact-box {
+    background: #dcfce7;
+    color: #166534;
+    padding: 24px;
+    border-radius: 20px;
+    border: 1px solid #bbf7d0;
+}
+
+
+/* --- People Card Spice --- */
+.person-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.person-card:hover {
+    transform: translateY(-8px) !important;
+    border-color: var(--primary) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.person-avatar {
+    width: 70px !important;
+    height: 70px !important;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px var(--border);
+    transition: box-shadow 0.3s ease;
+    margin-bottom: 16px !important;
+}
+
+.person-card:hover .person-avatar {
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
+.person-grade-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: #eef2ff;
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+    border: 1px solid #c7d2fe;
+}
+
+.person-skill-tags {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.mini-skill-tag {
+    font-size: 0.65rem;
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 6px;
+    color: var(--text-light);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
