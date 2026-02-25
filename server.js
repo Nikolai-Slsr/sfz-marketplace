@@ -38,6 +38,11 @@ if (GATE_TOKEN) {
     if (req.path.startsWith('/api')) return next();
     if (req.method !== 'GET') return next();
 
+    // Allow static assets without gate (needed for app.js/css)
+    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf)$/)) {
+      return next();
+    }
+
     const gateCookie = req.cookies.sfz_gate === '1';
     const token = req.query.token;
 
