@@ -52,7 +52,32 @@ if (GATE_TOKEN) {
     }
 
     if (gateCookie) return next();
-    return res.status(403).send('Zugang nur mit Token. Füge ?token=... zur URL hinzu.');
+    return res.status(403).send(`<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFZ Zugang</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .box{background:#111827;border:1px solid #334155;border-radius:16px;padding:28px;max-width:420px;width:90%}
+    h1{margin:0 0 8px 0;font-size:1.4rem}
+    p{color:#94a3b8;line-height:1.5}
+    input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;margin:12px 0}
+    button{width:100%;padding:12px 14px;border-radius:8px;border:none;background:#6366f1;color:white;font-weight:600;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Zugang nur mit Token</h1>
+    <p>Bitte gib deinen Zugangscode ein. Danach wirst du weitergeleitet.</p>
+    <form onsubmit="event.preventDefault(); const t=document.getElementById('t').value; if(t){ window.location='/?token='+encodeURIComponent(t); }">
+      <input id="t" placeholder="Token eingeben" />
+      <button type="submit">Weiter</button>
+    </form>
+  </div>
+</body>
+</html>`);
   });
 }
 

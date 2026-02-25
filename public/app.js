@@ -15,6 +15,7 @@ function initNavigation() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const view = btn.dataset.view;
+            if (!view) return; // e.g. Bug button
             if (!currentUser) {
                 document.getElementById('authModal').classList.add('active');
                 return;
@@ -40,13 +41,22 @@ async function initAuth() {
     const userMenu = document.getElementById('userMenu');
 
     if (currentUser) {
-        userMenu.innerHTML = `
-            <span>Hallo, <strong>${currentUser.name}</strong></span>
-            <button onclick="logout()" style="margin-left:10px">Abmelden</button>
-        `;
-        document.getElementById('matchCard').style.display = 'block';
-        document.getElementById('accountBtn').style.display = 'inline-block';
-        return;
+        const res = await fetch('/api/me').catch(() => null);
+        if (!res || !res.ok) {
+            currentUser = null;
+            localStorage.removeItem('sfz_user');
+        } else {
+            const fresh = await res.json();
+            currentUser = fresh;
+            localStorage.setItem('sfz_user', JSON.stringify(fresh));
+            userMenu.innerHTML = `
+                <span>Hallo, <strong>${currentUser.name}</strong></span>
+                <button onclick="logout()" style="margin-left:10px">Abmelden</button>
+            `;
+            document.getElementById('matchCard').style.display = 'block';
+            document.getElementById('accountBtn').style.display = 'inline-block';
+            return;
+        }
     }
 
     userMenu.innerHTML = `<button id="loginBtn">Login</button>`;
@@ -78,6 +88,12 @@ async function loadData() {
             fetch('/api/listings'),
             fetch('/api/users')
         ]);
+        if (!listingsRes.ok) {
+            currentUser = null;
+            localStorage.removeItem('sfz_user');
+            document.getElementById('authModal').classList.add('active');
+            return;
+        }
         allListings = await listingsRes.json();
         allUsers = await usersRes.json();
         loadDiscovery();
@@ -204,9 +220,18 @@ function setupEventListeners() {
     document.getElementById('createForm').addEventListener('submit', createListing);
     document.getElementById('bugForm').addEventListener('submit', submitBug);
 
+    const bugBtn = document.getElementById('bugBtn');
+    if (bugBtn) bugBtn.addEventListener('click', () => document.getElementById('bugModal').classList.add('active'));
+
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('.modal').classList.remove('active');
+        });
+    });
+
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
         });
     });
 

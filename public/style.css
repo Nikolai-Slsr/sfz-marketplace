@@ -9,7 +9,7 @@
     --text-light: #64748b;
     --border: #e2e8f0;
     --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 4px -2px rgba(0,0,0,0.1);
 }
 
 * {
@@ -85,7 +85,6 @@ nav {
     display: block;
 }
 
-/* Hero */
 .hero {
     text-align: center;
     padding: 40px 0;
@@ -133,7 +132,6 @@ nav {
     font-size: 1.2rem;
 }
 
-/* Discovery Grid */
 .discovery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -202,7 +200,6 @@ nav {
     color: var(--text-light);
 }
 
-/* User Chips */
 .user-chips {
     display: flex;
     flex-wrap: wrap;
@@ -223,7 +220,6 @@ nav {
     cursor: pointer;
 }
 
-/* Filter Bar */
 .filter-bar {
     display: flex;
     gap: 8px;
@@ -247,7 +243,6 @@ nav {
     border-color: var(--primary);
 }
 
-/* Grid */
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -258,7 +253,6 @@ nav {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
-/* Cards */
 .card {
     background: var(--card);
     border-radius: 16px;
@@ -328,7 +322,6 @@ nav {
     color: var(--text-light);
 }
 
-/* People Card */
 .person-card {
     background: var(--card);
     border-radius: 16px;
@@ -367,7 +360,6 @@ nav {
     color: var(--text-light);
 }
 
-/* Forms */
 .form-group {
     margin-bottom: 20px;
 }
@@ -420,7 +412,6 @@ nav {
     transform: translateY(-2px);
 }
 
-/* Modal */
 .modal {
     display: none;
     position: fixed;
@@ -462,32 +453,52 @@ nav {
     color: var(--text);
 }
 
-/* Responsive */
+.tab-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;
         gap: 16px;
     }
-    
+
     nav {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
     .hero h1 {
         font-size: 1.75rem;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .discovery-grid {
         grid-template-columns: 1fr;
     }
 }
 
-/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
