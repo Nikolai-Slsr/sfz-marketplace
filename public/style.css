@@ -20,9 +20,19 @@
 
 body {
     font-family: 'Inter', -apple-system, sans-serif;
-    background: var(--bg);
     color: var(--text);
     line-height: 1.6;
+    overflow-x: hidden;
+
+    /* Aurora Background Global (Covering Header + Hero) */
+    background-color: var(--bg);
+    background-image: 
+        linear-gradient(180deg, transparent 0%, var(--bg) 100%),
+        radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 85% 10%, rgba(6, 182, 212, 0.2) 0%, transparent 40%),
+        radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.25) 0%, transparent 60%);
+    background-size: 100% 800px;
+    background-repeat: no-repeat;
 }
 
 .container {
@@ -36,7 +46,8 @@ header {
     align-items: center;
     justify-content: space-between;
     padding: 20px 0;
-    border-bottom: 1px solid var(--border);
+    /* Subtle separator line compatible with aurora background */
+    border-bottom: 1px solid rgba(30, 41, 59, 0.08);
     margin-bottom: 30px;
 }
 
@@ -63,7 +74,7 @@ nav {
 }
 
 .nav-btn:hover {
-    background: var(--bg);
+    background: rgba(255, 255, 255, 0.5);
     color: var(--text);
 }
 
@@ -87,8 +98,9 @@ nav {
 
 .hero {
     text-align: center;
-    padding: 40px 0;
+    padding: 60px 0;
     margin-bottom: 40px;
+    /* Background moved to body */
 }
 
 .hero h1 {
@@ -113,6 +125,7 @@ nav {
     box-shadow: var(--shadow-lg);
     border-radius: 12px;
     overflow: hidden;
+    background: white;
 }
 
 .search-box input {

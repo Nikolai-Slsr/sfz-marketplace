@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuth();
     setupEventListeners();
     loadData();
+    // Initialize icons if lucide is present
+    if (window.lucide) lucide.createIcons();
 });
 
 function initNavigation() {
@@ -72,10 +74,11 @@ async function initAuth() {
             `;
             document.getElementById('matchCard').style.display = 'block';
             document.getElementById('matchListings').classList.add('mini-grid');
-            document.getElementById('accountBtn').style.display = 'inline-block';
+            document.getElementById('accountBtn').style.display = 'inline-flex'; // changed to flex for icon alignment
             document.getElementById('welcomeTitle').innerText = 'Moin, ' + displayName.split(' ')[0] + '!';
             document.getElementById('welcomeText').innerText = 'Schön, dass du da bist. Hier ist dein Update.';
             document.getElementById('quickActions').style.display = 'flex';
+            if (window.lucide) lucide.createIcons();
             return;
         }
     }
@@ -137,6 +140,7 @@ async function loadDiscovery() {
     await loadRandom();
     await loadMatches();
     renderActiveUsers();
+    if (window.lucide) lucide.createIcons();
 }
 
 async function loadRandom() {
@@ -155,8 +159,8 @@ async function loadRandom() {
             const parsedImages = item.image_paths ? JSON.parse(item.image_paths) : [];
             const hasImage = parsedImages.length > 0;
             const bg = hasImage ? `background-image:url(${parsedImages[0]})` : '';
-            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem` : '';
-            const fallbackContent = !hasImage ? '📦' : '';
+            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-light)` : '';
+            const fallbackContent = !hasImage ? '<i data-lucide="package"></i>' : '';
 
             return `
             <div class="mini-card" onclick="showDetail(${item.id})">
@@ -191,8 +195,8 @@ async function loadMatches() {
             const parsedImages = item.image_paths ? JSON.parse(item.image_paths) : [];
             const hasImage = parsedImages.length > 0;
             const bg = hasImage ? `background-image:url(${parsedImages[0]})` : '';
-            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem` : '';
-            const fallbackContent = !hasImage ? '⚡' : '';
+            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-light)` : '';
+            const fallbackContent = !hasImage ? '<i data-lucide="zap"></i>' : '';
 
             return `
             <div class="mini-card" onclick="showDetail(${item.id})">
@@ -265,7 +269,9 @@ function renderListings(filter) {
         <div class="card" onclick="showDetail(${item.id})">
             <div class="card-header">
                 <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
-                <span style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)}</span>
+                <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); startEdit(${item.id})"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
+                <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); deleteListing(${item.id})"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+                <span style="font-size:0.8rem;color:var(--text-light);margin-left:auto">${escapeHtml(item.category)}</span>
             </div>
             <h3>${escapeHtml(item.title)}</h3>
             <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
@@ -280,6 +286,7 @@ function renderListings(filter) {
             </div>
         </div>
     `).join('');
+    if (window.lucide) lucide.createIcons();
 }
 
 function renderPeople() {
@@ -557,7 +564,7 @@ async function loadAccount() {
     
     // Add visual indicator if contact is hidden
     const hiddenBadge = currentUser.hide_contact === 1 || currentUser.hide_contact === true
-        ? ' <span style="font-size:0.8rem;color:var(--text-light);background:var(--bg);padding:2px 6px;border-radius:4px">🔒 Verborgen</span>' 
+        ? ' <span style="font-size:0.8rem;color:var(--text-light);background:var(--bg);padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="lock" style="width:12px;height:12px"></i> Verborgen</span>' 
         : '';
         
     container.innerHTML = `
@@ -570,7 +577,7 @@ async function loadAccount() {
                 <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
                 <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}${hiddenBadge}
             </div>
-            <button onclick="startProfileEdit()" class="btn-secondary">✏️ Profil</button>
+            <button onclick="startProfileEdit()" class="btn-secondary"><i data-lucide="edit-3" style="width:14px;height:14px;margin-right:4px"></i> Profil</button>
         </div>
     `;
 
@@ -586,8 +593,8 @@ async function loadAccount() {
             <div class="card">
                 <div class="card-header">
                     <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
-                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px" onclick="event.stopPropagation(); startEdit(${item.id})">✏️</button>
-                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5" onclick="event.stopPropagation(); deleteListing(${item.id})">🗑️</button>
+                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); startEdit(${item.id})"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
+                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); deleteListing(${item.id})"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
                     <span style="font-size:0.8rem;color:var(--text-light);margin-left:auto">${escapeHtml(item.category)}</span>
                 </div>
                 <h3>${escapeHtml(item.title)}</h3>
@@ -599,6 +606,7 @@ async function loadAccount() {
     } catch (err) {
         console.error('Account load error:', err);
     }
+    if (window.lucide) lucide.createIcons();
 }
 
 function startProfileEdit() {
