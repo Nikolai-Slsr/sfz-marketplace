@@ -307,7 +307,11 @@
                         <label>Kontakt-Info</label>
                         <input type="text" id="profContact" required>
                     </div>
-                    <button type="submit" class="btn-primary">Speichern</button>
+                    <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-top:12px">
+                        <input type="checkbox" id="profHideContact" style="width:auto">
+                        <label for="profHideContact" style="margin:0; font-weight:normal; cursor:pointer;">Kontaktinfo für andere ausblenden</label>
+                    </div>
+                    <button type="submit" class="btn-primary" style="margin-top:20px">Speichern</button>
                 </form>
             </div>
         </div>
@@ -347,6 +351,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Force cache reload with version parameter -->
+    <script src="app.js?v=2"></script>
 </body>
 </html>

@@ -515,7 +515,7 @@ function showDetail(id) {
             ${item.tags?.split(',').map(t => `<span class="tag">${escapeHtml(t.trim())}</span>`).join('') || 'Keine Tags'}
         </div>
         <div style="background:var(--bg);padding:16px;border-radius:8px">
-            <strong>Kontakt:</strong> ${escapeHtml(item.contact) || 'Über Profil'}
+            <strong>Kontakt:</strong> ${escapeHtml(item.contact) || '<em style="color:var(--text-light)">(Nicht öffentlich)</em>'}
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
@@ -541,7 +541,7 @@ function showUserProfile(id) {
             <p style="margin:8px 0;color:var(--text)">${escapeHtml(user.skills) || 'Keine angegeben'}</p>
         </div>
         <div style="background:linear-gradient(135deg, var(--primary), var(--secondary));color:white;padding:16px;border-radius:8px;margin-top:20px">
-            <strong>Kontakt:</strong> ${escapeHtml(user.contact)}
+            <strong>Kontakt:</strong> ${escapeHtml(user.contact) || '<em style="opacity:0.8">(Nicht öffentlich)</em>'}
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
@@ -550,6 +550,12 @@ function showUserProfile(id) {
 async function loadAccount() {
     if (!currentUser) return;
     const container = document.getElementById('accountInfo');
+    
+    // Add visual indicator if contact is hidden
+    const hiddenBadge = currentUser.hide_contact === 1 || currentUser.hide_contact === true
+        ? ' <span style="font-size:0.8rem;color:var(--text-light);background:var(--bg);padding:2px 6px;border-radius:4px">🔒 Verborgen</span>' 
+        : '';
+        
     container.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
@@ -557,7 +563,7 @@ async function loadAccount() {
                 <strong>Klasse:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
                 <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
                 <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
-                <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}
+                <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}${hiddenBadge}
             </div>
             <button onclick="startProfileEdit()" class="btn-secondary">✏️ Profil</button>
         </div>
@@ -597,16 +603,23 @@ function startProfileEdit() {
     document.getElementById('profSkills').value = currentUser.skills || '';
     document.getElementById('profContact').value = currentUser.contact || '';
     
+    // Set checkbox state based on currentUser data (make sure it handles 1/0 or true/false)
+    const isHidden = currentUser.hide_contact === 1 || currentUser.hide_contact === true;
+    const checkbox = document.getElementById('profHideContact');
+    if (checkbox) checkbox.checked = isHidden;
+    
     document.getElementById('editProfileModal').classList.add('active');
 }
 
 async function saveProfile(e) {
     e.preventDefault();
+    const checkbox = document.getElementById('profHideContact');
     const data = {
         grade: document.getElementById('profGrade').value,
         interests: document.getElementById('profInterests').value,
         skills: document.getElementById('profSkills').value,
-        contact: document.getElementById('profContact').value
+        contact: document.getElementById('profContact').value,
+        hide_contact: checkbox ? checkbox.checked : false
     };
     
     try {

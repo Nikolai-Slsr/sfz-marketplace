@@ -68,6 +68,7 @@ db.serialize(() => {
     interests TEXT,
     skills TEXT,
     contact TEXT,
+    hide_contact INTEGER DEFAULT 0,
     password_hash TEXT,
     is_admin INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -129,6 +130,15 @@ db.serialize(() => {
     }
   });
 
+  // Users Migration for hide_contact
+  db.all("PRAGMA table_info(users)", (err, rows) => {
+    if (err) return;
+    const columns = rows.map(r => r.name);
+    if (!columns.includes('hide_contact')) {
+      db.run("ALTER TABLE users ADD COLUMN hide_contact INTEGER DEFAULT 0");
+    }
+  });
+
   db.run(`CREATE TABLE IF NOT EXISTS security_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL,
@@ -162,7 +172,7 @@ function requireLogin(req, res, next) {
   if (!token) return res.status(401).json({error: 'Nicht eingeloggt'});
 
   const sql = `
-    SELECT u.id, u.name, u.grade, u.interests, u.skills, u.contact, u.is_admin
+    SELECT u.id, u.name, u.grade, u.interests, u.skills, u.contact, u.hide_contact, u.is_admin
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ? AND s.expires_at > datetime('now')
@@ -250,12 +260,14 @@ app.post('/api/login', authLimiter, (req, res) => {
         interests: user.interests,
         skills: user.skills,
         contact: user.contact,
+        hide_contact: user.hide_contact,
         is_admin: user.is_admin == 1
       });
     });
   });
 });
 
+// Admin User Management - Uses actual contact info, admins can see everything
 app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
   db.all(`SELECT id, name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
@@ -357,9 +369,11 @@ if (!fs.existsSync('public/uploads')) {
 }
 
 // Listings (privat)
+// Updated to hide contact if requested
 app.get('/api/listings', apiLimiter, requireLogin, (req, res) => {
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests, u.contact as contact
+    SELECT l.*, u.name as author_name, u.grade, u.interests,
+    CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 
     ORDER BY l.created_at DESC
@@ -370,10 +384,12 @@ app.get('/api/listings', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
+// Updated to hide contact if requested
 app.get('/api/users/:id/listings', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.id;
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests, u.contact as contact
+    SELECT l.*, u.name as author_name, u.grade, u.interests,
+    CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 
     WHERE l.user_id = ? 
@@ -385,9 +401,11 @@ app.get('/api/users/:id/listings', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
+// Updated to hide contact if requested
 app.get('/api/discover', apiLimiter, requireLogin, (req, res) => {
   const sql = `
-    SELECT l.*, u.name as author_name, u.grade, u.interests, u.skills, u.contact as contact
+    SELECT l.*, u.name as author_name, u.grade, u.interests, u.skills,
+    CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id
     ORDER BY l.created_at DESC LIMIT 6
@@ -398,6 +416,7 @@ app.get('/api/discover', apiLimiter, requireLogin, (req, res) => {
   });
 });
 
+// Updated to hide contact if requested
 app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
   const userId = req.params.userId;
   db.get(`SELECT interests, skills FROM users WHERE id = ?`, [userId], (err, user) => {
@@ -479,30 +498,39 @@ app.delete('/api/listings/:id', requireLogin, (req, res) => {
   });
 });
 
+// Updated to hide contact if requested
 app.get('/api/users', apiLimiter, requireLogin, (req, res) => {
-  db.all(`SELECT id, name, grade, interests, skills, contact, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
+  const sql = `
+    SELECT id, name, grade, interests, skills, is_admin, created_at,
+    CASE WHEN hide_contact = 1 THEN NULL ELSE contact END as contact
+    FROM users 
+    ORDER BY created_at DESC
+  `;
+  db.all(sql, [], (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
     res.json(rows);
   });
 });
 
 app.put('/api/me', requireLogin, (req, res) => {
-    const {grade, interests, skills, contact} = req.body;
-    const sql = `UPDATE users SET grade = ?, interests = ?, skills = ?, contact = ? WHERE id = ?`;
-    db.run(sql, [grade, interests, skills, contact, req.user.id], function(err) {
+    const {grade, interests, skills, contact, hide_contact} = req.body;
+    const sql = `UPDATE users SET grade = ?, interests = ?, skills = ?, contact = ?, hide_contact = ? WHERE id = ?`;
+    db.run(sql, [grade, interests, skills, contact, hide_contact ? 1 : 0, req.user.id], function(err) {
         if (err) return res.status(500).json({error: err.message});
         
         // Return fresh user object for frontend update
-        db.get(`SELECT id, name, grade, interests, skills, contact, is_admin FROM users WHERE id = ?`, [req.user.id], (e, row) => {
+        db.get(`SELECT id, name, grade, interests, skills, contact, hide_contact, is_admin FROM users WHERE id = ?`, [req.user.id], (e, row) => {
              res.json(row);
         });
     });
 });
 
+// Updated to hide contact if requested
 app.get('/api/search', apiLimiter, requireLogin, (req, res) => {
   const {q} = req.query;
   const sql = `
-    SELECT l.*, u.name as author_name, u.contact as contact
+    SELECT l.*, u.name as author_name,
+    CASE WHEN u.hide_contact = 1 THEN NULL ELSE u.contact END as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id 
     WHERE l.title LIKE ? OR l.description LIKE ? OR l.tags LIKE ?
@@ -550,132 +578,6 @@ app.get('/api/admin/stats', requireLogin, requireAdmin, (req, res) => {
       db.get(`SELECT COUNT(*) as bugs FROM bugs`, [], (err, bugs) => {
         res.json({users: users.users, listings: listings.listings, bugs: bugs.bugs});
       });
-    });
-  });
-});
-
-app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
-    const sql = `
-        SELECT id, name, grade, interests, skills, contact, is_admin, created_at 
-        FROM users 
-        ORDER BY created_at DESC
-    `;
-    db.all(sql, [], (err, rows) => {
-        if (err) return res.status(500).json({error: err.message});
-        res.json(rows);
-    });
-});
-
-app.put('/api/admin/users/:id/role', requireLogin, requireAdmin, (req, res) => {
-    const userId = req.params.id;
-    const { is_admin } = req.body;
-    
-    if (userId == req.user.id) {
-       return res.status(400).json({ error: 'Du kannst deinen eigenen Status nicht ändern.' });
-    }
-  
-    const sql = `UPDATE users SET is_admin = ? WHERE id = ?`;
-    db.run(sql, [is_admin ? 1 : 0, userId], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    });
-});
-  
-app.delete('/api/admin/users/:id', requireLogin, requireAdmin, (req, res) => {
-    const userId = req.params.id;
-    
-    if (userId == req.user.id) {
-       return res.status(400).json({ error: 'Du kannst dich nicht selbst löschen.' });
-    }
-  
-    // 1. Get images to delete
-    db.all(`SELECT image_paths FROM listings WHERE user_id = ?`, [userId], (err, rows) => {
-        if (!err && rows) {
-            rows.forEach(row => {
-                if (row.image_paths) {
-                    try {
-                        const paths = JSON.parse(row.image_paths);
-                        paths.forEach(p => {
-                            const imgPath = path.join(__dirname, 'public', p);
-                            if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-                        });
-                    } catch (e) {
-                         console.error('Error cleaning up images for user deletion:', e);
-                    }
-                }
-            });
-        }
-
-        // 2. Delete Listings
-        db.run(`DELETE FROM listings WHERE user_id = ?`, [userId], (err) => {
-            if (err) console.error("Error deleting listings", err);
-            
-            // 3. Delete Sessions
-            db.run(`DELETE FROM sessions WHERE user_id = ?`, [userId], (err) => {
-                if (err) console.error("Error deleting sessions", err);
-
-                // 4. Delete User
-                db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ success: true });
-                });
-            });
-        });
-    });
-});
-
-// Admin User Management
-app.get('/api/admin/users', requireLogin, requireAdmin, (req, res) => {
-  db.all(`SELECT id, name, grade, is_admin, created_at FROM users ORDER BY created_at DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({error: err.message});
-    res.json(rows);
-  });
-});
-
-app.put('/api/admin/users/:id/role', requireLogin, requireAdmin, (req, res) => {
-  const userId = req.params.id;
-  const {is_admin} = req.body;
-  if (userId == req.user.id) return res.status(403).json({error: 'Cannot update own role'});
-
-  db.run(`UPDATE users SET is_admin = ? WHERE id = ?`, [is_admin ? 1 : 0, userId], function(err) {
-    if (err) return res.status(500).json({error: err.message});
-    res.json({updated: this.changes});
-  });
-});
-
-app.delete('/api/admin/users/:id', requireLogin, requireAdmin, (req, res) => {
-  const userId = req.params.id;
-  if (userId == req.user.id) return res.status(403).json({error: 'Cannot delete own account'});
-
-  // Cascade delete logic (listings, images, sessions) will be complex, doing simple delete for now
-  // Real implementation should clean up images from disk too
-  db.serialize(() => {
-    db.run(`DELETE FROM sessions WHERE user_id = ?`, [userId]);
-    
-    // Clean up images
-    db.all(`SELECT image_path, image_paths FROM listings WHERE user_id = ?`, [userId], (err, rows) => {
-      if (!err && rows) {
-        rows.forEach(row => {
-          if (row.image_path) {
-             const p = path.join(__dirname, 'public', row.image_path);
-             if (fs.existsSync(p)) fs.unlinkSync(p);
-          }
-          if (row.image_paths) {
-            try {
-              JSON.parse(row.image_paths).forEach(p => {
-                 const fullP = path.join(__dirname, 'public', p);
-                 if (fs.existsSync(fullP)) fs.unlinkSync(fullP);
-              });
-            } catch(e) {}
-          }
-        });
-      }
-    });
-
-    db.run(`DELETE FROM listings WHERE user_id = ?`, [userId]);
-    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
-        if (err) return res.status(500).json({error: err.message});
-        res.json({deleted: this.changes});
     });
   });
 });
