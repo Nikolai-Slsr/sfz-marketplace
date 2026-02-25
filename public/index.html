@@ -19,9 +19,7 @@
                 <button class="nav-btn" onclick="document.getElementById('bugModal').classList.add('active')">🐛 Bug</button>
                 <button class="nav-btn primary" data-view="create">+ Neu</button>
             </nav>
-            <div class="user-menu" id="userMenu">
-                <button id="loginBtn">SFZ-Zugang</button>
-            </div>
+            <div class="user-menu" id="userMenu"></div>
         </header>
 
         <main>
@@ -30,7 +28,6 @@
                 <div class="hero">
                     <h1>Entdecke Projekte & Mitstreiter</h1>
                     <p>Im SFZ verbinden wir Schüler mit ähnlichen Interessen. Wenige Nutzer, mehr Nähe.</p>
-                    <p style="margin-top:8px;color:var(--text-light);font-size:0.95rem">Letztes Update: Test-Deploy ✅</p>
                     <div class="search-box">
                         <input type="text" id="searchInput" placeholder="Suche nach Themen, Skills, Projekten...">
                         <button id="searchBtn">🔍</button>
@@ -143,51 +140,64 @@
             </div>
         </main>
 
-        <!-- Login Modal -->
-        <div class="modal" id="loginModal">
+        <!-- Auth Modal -->
+        <div class="modal" id="authModal">
             <div class="modal-content">
                 <span class="close">&times;</span>
-                <h2>SFZ-Zugang</h2>
-                <p style="color:var(--text-light);margin-bottom:20px">Gib das SFZ-Master-Passwort ein, um Anzeigen zu erstellen.</p>
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label>Passwort</label>
-                        <input type="password" id="masterPassword" required placeholder="SFZ Passwort">
-                    </div>
-                    <button type="submit" class="btn-primary">Zugang erhalten</button>
-                </form>
-                <p id="loginError" style="color:#dc2626;margin-top:12px;display:none">Falsches Passwort!</p>
-            </div>
-        </div>
+                <h2>Login / Registrierung</h2>
+                <div class="tab-switch" style="display:flex;gap:8px;margin:16px 0">
+                    <button class="tab-btn active" data-tab="loginTab">Login</button>
+                    <button class="tab-btn" data-tab="registerTab">Registrieren</button>
+                </div>
 
-        <!-- User/Profil Modal -->
-        <div class="modal" id="userModal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Profil erstellen</h2>
-                <form id="userForm">
-                    <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" id="userName" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Klassenstufe</label>
-                        <input type="text" id="userGrade" placeholder="z.B. 9a, Q2">
-                    </div>
-                    <div class="form-group">
-                        <label>Interessen</label>
-                        <input type="text" id="userInterests" placeholder="z.B. Astronomie, Programmieren, Biologie">
-                    </div>
-                    <div class="form-group">
-                        <label>Skills</label>
-                        <input type="text" id="userSkills" placeholder="z.B. JavaScript, CAD, Mikroskopie">
-                    </div>
-                    <div class="form-group">
-                        <label>Kontakt (Email oder Telegram)</label>
-                        <input type="text" id="userContact" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Speichern</button>
-                </form>
+                <div id="loginTab" class="tab-panel active">
+                    <form id="authForm">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="loginName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Passwort</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Login</button>
+                    </form>
+                </div>
+
+                <div id="registerTab" class="tab-panel">
+                    <form id="registerForm">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="regName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Passwort</label>
+                            <input type="password" id="regPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Klassenstufe</label>
+                            <input type="text" id="regGrade" placeholder="z.B. 9a, Q2">
+                        </div>
+                        <div class="form-group">
+                            <label>Interessen</label>
+                            <input type="text" id="regInterests" placeholder="z.B. Astronomie, Programmieren, Biologie">
+                        </div>
+                        <div class="form-group">
+                            <label>Skills</label>
+                            <input type="text" id="regSkills" placeholder="z.B. JavaScript, CAD, Mikroskopie">
+                        </div>
+                        <div class="form-group">
+                            <label>Kontakt (Email oder Telegram)</label>
+                            <input type="text" id="regContact" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Invite-Code (optional)</label>
+                            <input type="text" id="regInvite" placeholder="Nur falls nötig">
+                        </div>
+                        <button type="submit" class="btn-primary">Registrieren</button>
+                    </form>
+                </div>
+                <p id="authError" style="color:#dc2626;margin-top:12px;display:none">Login fehlgeschlagen.</p>
             </div>
         </div>
 
@@ -198,7 +208,6 @@
                 <div id="detailContent"></div>
             </div>
         </div>
-    </div>
 
         <!-- Bug Report Modal -->
         <div class="modal" id="bugModal">
@@ -233,45 +242,7 @@
                 <p id="bugSuccess" style="color:#16a34a;margin-top:12px;display:none">Danke! Dein Feedback wurde gespeichert.</p>
             </div>
         </div>
-
-        <!-- Edit Listing Modal -->
-        <div class="modal" id="editModal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Anzeige bearbeiten</h2>
-                <form id="editForm">
-                    <input type="hidden" id="editId">
-                    <div class="form-group">
-                        <label>Titel</label>
-                        <input type="text" id="editTitle" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Beschreibung</label>
-                        <textarea id="editDescription" rows="4"></textarea>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="text" id="editPrice">
-                        </div>
-                        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:12px">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                <input type="checkbox" id="editVb" style="width:auto">
-                                <span>VB</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Tags</label>
-                        <input type="text" id="editTags">
-                    </div>
-                    <div style="display:flex;gap:12px">
-                        <button type="submit" class="btn-primary">Speichern</button>
-                        <button type="button" class="btn-secondary" onclick="deleteListing()" style="background:#dc2626;color:white">Löschen</button>
-                    </div>
-                </form>
-            </div>
-        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

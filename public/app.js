@@ -1,5 +1,4 @@
-// SFZ Marktplatz - Frontend mit Master-Passwort
-let sfzAuth = localStorage.getItem('sfz_auth') || null;
+// SFZ Marktplatz - Frontend mit Login
 let currentUser = JSON.parse(localStorage.getItem('sfz_user') || 'null');
 let allListings = [];
 let allUsers = [];
@@ -8,16 +7,16 @@ let allUsers = [];
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initAuth();
-    loadData();
     setupEventListeners();
+    loadData();
 });
 
 function initNavigation() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const view = btn.dataset.view;
-            if (view === 'create' && !sfzAuth) {
-                document.getElementById('loginModal').classList.add('active');
+            if (!currentUser) {
+                document.getElementById('authModal').classList.add('active');
                 return;
             }
             switchView(view);
@@ -30,54 +29,51 @@ function initNavigation() {
 function switchView(view) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(view).classList.add('active');
-    
+
     if (view === 'listings') renderListings('all');
     if (view === 'people') renderPeople();
     if (view === 'discover') loadDiscovery();
+    if (view === 'account') loadAccount();
 }
 
-function initAuth() {
+async function initAuth() {
     const userMenu = document.getElementById('userMenu');
-    if (sfzAuth && currentUser) {
+
+    if (currentUser) {
         userMenu.innerHTML = `
             <span>Hallo, <strong>${currentUser.name}</strong></span>
             <button onclick="logout()" style="margin-left:10px">Abmelden</button>
         `;
         document.getElementById('matchCard').style.display = 'block';
-    } else {
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            if (sfzAuth && !currentUser) {
-                document.getElementById('userModal').classList.add('active');
-            } else {
-                document.getElementById('loginModal').classList.add('active');
-            }
-        });
+        document.getElementById('accountBtn').style.display = 'inline-block';
+        return;
     }
+
+    userMenu.innerHTML = `<button id="loginBtn">Login</button>`;
+    document.getElementById('loginBtn').addEventListener('click', () => {
+        document.getElementById('authModal').classList.add('active');
+    });
 }
 
 function logout() {
-    sfzAuth = null;
-    currentUser = null;
-    localStorage.removeItem('sfz_auth');
-    localStorage.removeItem('sfz_user');
-    location.reload();
+    fetch('/api/logout', {method: 'POST'}).finally(() => {
+        currentUser = null;
+        localStorage.removeItem('sfz_user');
+        location.reload();
+    });
 }
 
-// API Helper mit Auth
 async function apiPost(url, data) {
     return fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-SFZ-Auth': sfzAuth
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
 }
 
-// API Calls
 async function loadData() {
     try {
+        if (!currentUser) return;
         const [listingsRes, usersRes] = await Promise.all([
             fetch('/api/listings'),
             fetch('/api/users')
@@ -91,8 +87,9 @@ async function loadData() {
 }
 
 async function loadDiscovery() {
+    if (!currentUser) return;
     await loadRandom();
-    if (currentUser) await loadMatches();
+    await loadMatches();
     renderActiveUsers();
 }
 
@@ -113,6 +110,7 @@ async function loadRandom() {
 }
 
 async function loadMatches() {
+    if (!currentUser) return;
     try {
         const res = await fetch(`/api/match/${currentUser.id}`);
         const items = await res.json();
@@ -152,7 +150,7 @@ function renderListings(filter) {
     if (filter !== 'all') {
         filtered = allListings.filter(l => l.type === filter || l.category === filter);
     }
-    
+
     container.innerHTML = filtered.map(item => `
         <div class="card" onclick="showDetail(${item.id})">
             <div class="card-header">
@@ -187,9 +185,7 @@ function renderPeople() {
     `).join('');
 }
 
-// Event Listeners
 function setupEventListeners() {
-    // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -198,70 +194,105 @@ function setupEventListeners() {
         });
     });
 
-    // Search
     document.getElementById('searchBtn').addEventListener('click', doSearch);
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') doSearch();
     });
 
-    // Forms
-    document.getElementById('loginForm').addEventListener('submit', doLogin);
-    document.getElementById('userForm').addEventListener('submit', createUser);
+    document.getElementById('authForm').addEventListener('submit', doLogin);
+    document.getElementById('registerForm').addEventListener('submit', doRegister);
     document.getElementById('createForm').addEventListener('submit', createListing);
     document.getElementById('bugForm').addEventListener('submit', submitBug);
 
-    // Close modals
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('.modal').classList.remove('active');
+        });
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
         });
     });
 }
 
 async function doLogin(e) {
     e.preventDefault();
-    const password = document.getElementById('masterPassword').value;
-    
+    const name = document.getElementById('loginName').value;
+    const password = document.getElementById('loginPassword').value;
+
     try {
-        const res = await fetch('/api/auth', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({password})
-        });
-        
-        if (res.ok) {
-            sfzAuth = password;
-            localStorage.setItem('sfz_auth', password);
-            document.getElementById('loginModal').classList.remove('active');
-            document.getElementById('loginError').style.display = 'none';
-            // Zeige Profil-Modal direkt danach
-            document.getElementById('userModal').classList.add('active');
-        } else {
-            document.getElementById('loginError').style.display = 'block';
+        const res = await apiPost('/api/login', {name, password});
+        if (!res.ok) {
+            document.getElementById('authError').textContent = 'Login fehlgeschlagen.';
+            document.getElementById('authError').style.display = 'block';
+            return;
         }
+        const user = await res.json();
+        currentUser = user;
+        localStorage.setItem('sfz_user', JSON.stringify(user));
+        document.getElementById('authModal').classList.remove('active');
+        document.getElementById('authError').style.display = 'none';
+        location.reload();
     } catch (err) {
         console.error('Login error:', err);
+    }
+}
+
+async function doRegister(e) {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('regName').value,
+        password: document.getElementById('regPassword').value,
+        grade: document.getElementById('regGrade').value,
+        interests: document.getElementById('regInterests').value,
+        skills: document.getElementById('regSkills').value,
+        contact: document.getElementById('regContact').value,
+        inviteCode: document.getElementById('regInvite').value
+    };
+
+    try {
+        const res = await apiPost('/api/register', data);
+        if (!res.ok) {
+            const err = await res.json();
+            document.getElementById('authError').textContent = err.error || 'Registrierung fehlgeschlagen.';
+            document.getElementById('authError').style.display = 'block';
+            return;
+        }
+        const user = await res.json();
+        currentUser = user;
+        localStorage.setItem('sfz_user', JSON.stringify(user));
+        document.getElementById('authModal').classList.remove('active');
+        document.getElementById('authError').style.display = 'none';
+        location.reload();
+    } catch (err) {
+        console.error('Register error:', err);
     }
 }
 
 async function doSearch() {
     const q = document.getElementById('searchInput').value;
     if (!q) return;
-    
+
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
         const results = await res.json();
-        
+
         switchView('listings');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('[data-view="listings"]').classList.add('active');
-        
+
         const container = document.getElementById('listingsGrid');
         if (results.length === 0) {
             container.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-light)">Keine Ergebnisse gefunden.</p>';
             return;
         }
-        
+
         container.innerHTML = results.map(item => `
             <div class="card" onclick="showDetail(${item.id})">
                 <div class="card-header">
@@ -282,37 +313,14 @@ async function doSearch() {
     }
 }
 
-async function createUser(e) {
-    e.preventDefault();
-    const data = {
-        name: document.getElementById('userName').value,
-        grade: document.getElementById('userGrade').value,
-        interests: document.getElementById('userInterests').value,
-        skills: document.getElementById('userSkills').value,
-        contact: document.getElementById('userContact').value
-    };
-    
-    try {
-        const res = await apiPost('/api/users', data);
-        const result = await res.json();
-        currentUser = {id: result.id, ...data};
-        localStorage.setItem('sfz_user', JSON.stringify(currentUser));
-        document.getElementById('userModal').classList.remove('active');
-        location.reload();
-    } catch (err) {
-        console.error('Error creating user:', err);
-    }
-}
-
 async function createListing(e) {
     e.preventDefault();
-    if (!sfzAuth || !currentUser) {
-        document.getElementById('loginModal').classList.add('active');
+    if (!currentUser) {
+        document.getElementById('authModal').classList.add('active');
         return;
     }
-    
+
     const data = {
-        user_id: currentUser.id,
         title: document.getElementById('title').value,
         type: document.getElementById('type').value,
         category: document.getElementById('category').value,
@@ -321,7 +329,7 @@ async function createListing(e) {
         price: document.getElementById('price').value,
         vb: document.getElementById('vb').checked
     };
-    
+
     try {
         await apiPost('/api/listings', data);
         document.getElementById('createForm').reset();
@@ -335,13 +343,13 @@ async function createListing(e) {
 function showDetail(id) {
     const item = allListings.find(l => l.id === id);
     if (!item) return;
-    
+
     const priceDisplay = item.price ? `
         <div style="background:linear-gradient(135deg, var(--primary), var(--secondary));color:white;padding:16px;border-radius:8px;margin:20px 0">
             <strong>Preis:</strong> ${item.price}${item.vb == 1 ? ' (VB)' : ''}
         </div>
     ` : '';
-    
+
     const content = document.getElementById('detailContent');
     content.innerHTML = `
         <span class="card-type ${item.type}" style="margin-bottom:16px;display:inline-block">${item.type}</span>
@@ -363,7 +371,7 @@ function showDetail(id) {
 function showUserProfile(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
-    
+
     const content = document.getElementById('detailContent');
     content.innerHTML = `
         <div style="text-align:center;margin-bottom:20px">
@@ -386,6 +394,36 @@ function showUserProfile(id) {
     document.getElementById('detailModal').classList.add('active');
 }
 
+async function loadAccount() {
+    if (!currentUser) return;
+    const container = document.getElementById('accountInfo');
+    container.innerHTML = `
+        <strong>Name:</strong> ${currentUser.name}<br>
+        <strong>Klasse:</strong> ${currentUser.grade || '-'}<br>
+        <strong>Interessen:</strong> ${currentUser.interests || '-'}<br>
+        <strong>Skills:</strong> ${currentUser.skills || '-'}<br>
+        <strong>Kontakt:</strong> ${currentUser.contact || '-'}
+    `;
+
+    try {
+        const res = await fetch(`/api/users/${currentUser.id}/listings`);
+        const items = await res.json();
+        document.getElementById('myListings').innerHTML = items.map(item => `
+            <div class="card" onclick="showDetail(${item.id})">
+                <div class="card-header">
+                    <span class="card-type ${item.type}">${item.type}</span>
+                    <span style="font-size:0.8rem;color:var(--text-light)">${item.category}</span>
+                </div>
+                <h3>${item.title}</h3>
+                <p>${item.description?.substring(0, 100)}...</p>
+                <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
+            </div>
+        `).join('') || '<p style="color:var(--text-light)">Noch keine Anzeigen.</p>';
+    } catch (err) {
+        console.error('Account load error:', err);
+    }
+}
+
 // Bug Report
 async function submitBug(e) {
     e.preventDefault();
@@ -395,14 +433,14 @@ async function submitBug(e) {
         description: document.getElementById('bugDesc').value,
         reporter: document.getElementById('bugReporter').value || 'Anonymous'
     };
-    
+
     try {
         const res = await fetch('/api/bugs', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
-        
+
         if (res.ok) {
             document.getElementById('bugForm').reset();
             document.getElementById('bugSuccess').style.display = 'block';
