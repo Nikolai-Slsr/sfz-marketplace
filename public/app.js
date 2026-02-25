@@ -584,17 +584,51 @@ async function loadAccount() {
         ? ' <span style="font-size:0.8rem;color:var(--text-light);background:var(--bg);padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="lock" style="width:12px;height:12px"></i> Verborgen</span>' 
         : '';
         
+    
+    const displayName = escapeHtml(currentUser.full_name || currentUser.name);
+    const initial = displayName.charAt(0).toUpperCase();
+    
     container.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div>
-                <strong>Benutzername:</strong> ${escapeHtml(currentUser.name)}<br>
-                <strong>Anzeigename:</strong> ${escapeHtml(currentUser.full_name || currentUser.name)}<br>
-                <strong>Status:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
-                <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
-                <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
-                <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}${hiddenBadge}
+        <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:center; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid var(--border)">
+            <div class="person-avatar" style="width:80px; height:80px; font-size:2rem; margin:0; flex-shrink:0;">
+                ${initial}
             </div>
-            <button onclick="startProfileEdit()" class="btn-secondary"><i data-lucide="edit-3" style="width:14px;height:14px;margin-right:4px"></i> Profil</button>
+            <div style="flex:1; min-width:200px;">
+                <h2 style="margin:0 0 4px 0; font-size:1.5rem;">${displayName}</h2>
+                <p style="color:var(--text-light); margin:0; display:flex; align-items:center; gap:8px;">
+                    <span style="background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:12px; font-size:0.8rem; font-family:monospace;">@${escapeHtml(currentUser.name)}</span>
+                    ${escapeHtml(currentUser.grade) || 'SFZ Mitglied'}
+                </p>
+            </div>
+            <button onclick="startProfileEdit()" class="btn-primary" style="display:flex; align-items:center; gap:8px; white-space:nowrap; padding:10px 20px;">
+                <i data-lucide="edit-3" style="width:16px;height:16px"></i> Profil bearbeiten
+            </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:24px;">
+            <div style="background:var(--bg); padding:16px; border-radius:12px; border:1px solid var(--border);">
+                <div style="font-size:0.8rem; color:var(--text-light); font-weight:700; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="heart" style="width:14px;height:14px; color:var(--primary)"></i> Interessen
+                </div>
+                <p style="margin:0; line-height:1.5; color:var(--text); font-size:0.95rem;">${escapeHtml(currentUser.interests) || '<em style="color:var(--text-light)">Keine angegeben</em>'}</p>
+            </div>
+            
+            <div style="background:var(--bg); padding:16px; border-radius:12px; border:1px solid var(--border);">
+                <div style="font-size:0.8rem; color:var(--text-light); font-weight:700; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="zap" style="width:14px;height:14px; color:var(--accent)"></i> Skills
+                </div>
+                <p style="margin:0; line-height:1.5; color:var(--text); font-size:0.95rem;">${escapeHtml(currentUser.skills) || '<em style="color:var(--text-light)">Keine angegeben</em>'}</p>
+            </div>
+
+            <div style="background:var(--bg); padding:16px; border-radius:12px; border:1px solid var(--border);">
+                <div style="font-size:0.8rem; color:var(--text-light); font-weight:700; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <i data-lucide="mail" style="width:14px;height:14px; color:var(--secondary)"></i> Kontakt
+                </div>
+                <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <p style="margin:0; color:var(--text); font-size:0.95rem;">${escapeHtml(currentUser.contact) || '<em style="color:var(--text-light)">Keine angegeben</em>'}</p>
+                    ${hiddenBadge}
+                </div>
+            </div>
         </div>
     `;
 
