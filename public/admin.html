@@ -30,7 +30,7 @@
             <div class="admin-grid">
                 <div class="stat-card">
                     <h3 id="statUsers">0</h3>
-                    <p>Schüler</p>
+                    <p>Mitglieder</p>
                 </div>
                 <div class="stat-card">
                     <h3 id="statListings">0</h3>
@@ -121,7 +121,7 @@
                 return;
             }
             
-            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Name</th><th style="padding:12px;">Klasse</th><th style="padding:12px;">Rolle</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
+            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Name</th><th style="padding:12px;">Status</th><th style="padding:12px;">Rolle</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
             
             users.forEach(user => {
                 const isAdmin = user.is_admin === 1;

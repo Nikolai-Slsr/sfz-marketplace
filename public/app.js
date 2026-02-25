@@ -560,7 +560,7 @@ async function loadAccount() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
                 <strong>Name:</strong> ${escapeHtml(currentUser.name)}<br>
-                <strong>Klasse:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
+                <strong>Status:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
                 <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
                 <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
                 <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}${hiddenBadge}
