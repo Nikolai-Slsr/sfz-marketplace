@@ -464,14 +464,14 @@ app.post('/api/listings', requireLogin, uploadMaybe, (req, res) => {
 
 app.put('/api/listings/:id', requireLogin, (req, res) => {
   const listingId = req.params.id;
-  const {title, description, category, tags, price, vb} = req.body;
+  const {title, type, description, category, tags, price, vb} = req.body;
 
   db.get(`SELECT user_id FROM listings WHERE id = ?`, [listingId], (err, row) => {
     if (err || !row) return res.status(404).json({error: 'Listing nicht gefunden'});
     if (row.user_id !== req.user.id && req.user.is_admin !== 1) return res.status(403).json({error: 'Nicht erlaubt'});
 
-    const sql = `UPDATE listings SET title=?, description=?, category=?, tags=?, price=?, vb=? WHERE id=?`;
-    db.run(sql, [title, description, category, tags, price, vb ? 1 : 0, listingId], function(err) {
+    const sql = `UPDATE listings SET title=?, type=?, description=?, category=?, tags=?, price=?, vb=? WHERE id=?`;
+    db.run(sql, [title, type, description, category, tags, price, vb ? 1 : 0, listingId], function(err) {
       if (err) return res.status(500).json({error: err.message});
       res.json({updated: this.changes});
     });
