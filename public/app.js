@@ -14,6 +14,23 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
+
+// Helper for Category Badges
+function getCategoryBadge(category, customStyle = '') {
+    if (!category) return '';
+    const cat = category.toLowerCase();
+    let icon = 'tag';
+    let colorClass = 'cat-default';
+
+    if (cat.includes('technik') || cat.includes('robotik')) { icon = 'cpu'; colorClass = 'cat-technik'; }
+    else if (cat.includes('naturwissenschaft')) { icon = 'flask-conical'; colorClass = 'cat-natur'; }
+    else if (cat.includes('informatik') || cat.includes('coding')) { icon = 'code'; colorClass = 'cat-info'; }
+    else if (cat.includes('kunst') || cat.includes('design')) { icon = 'palette'; colorClass = 'cat-kunst'; }
+    else if (cat.includes('gesellschaft') || cat.includes('politik')) { icon = 'globe'; colorClass = 'cat-gesell'; }
+    
+    return `<span class="category-badge ${colorClass}" style="${customStyle}"><i data-lucide="${icon}" style="width:14px;height:14px"></i> ${escapeHtml(category)}</span>`;
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
@@ -167,7 +184,7 @@ async function loadRandom() {
                 <div class="mini-img" style="${bg};${fallback}">${fallbackContent}</div>
                 <div class="mini-content">
                     <h4>${escapeHtml(item.title)}</h4>
-                    <p style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)} • ${new Date(item.created_at).toLocaleDateString()}</p>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">${getCategoryBadge(item.category, "font-size:0.7rem;padding:2px 8px")} <span style="font-size:0.75rem;color:var(--text-light)">• ${new Date(item.created_at).toLocaleDateString()}</span></div>
                 </div>
             </div>`;
         }).join('');
@@ -269,9 +286,7 @@ function renderListings(filter) {
         <div class="card" onclick="showDetail(${item.id})">
             <div class="card-header">
                 <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
-                <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); startEdit(${item.id})"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
-                <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); deleteListing(${item.id})"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
-                <span style="font-size:0.8rem;color:var(--text-light);margin-left:auto">${escapeHtml(item.category)}</span>
+                ${getCategoryBadge(item.category, "margin-left:auto")}
             </div>
             <h3>${escapeHtml(item.title)}</h3>
             <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
@@ -448,7 +463,7 @@ async function doSearch() {
             <div class="card" onclick="showDetail(${item.id})">
                 <div class="card-header">
                     <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
-                    <span style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)}</span>
+                    ${getCategoryBadge(item.category)}
                 </div>
                 <h3>${escapeHtml(item.title)}</h3>
                 <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
@@ -516,7 +531,7 @@ function showDetail(id) {
     content.innerHTML = `
         <span class="card-type ${item.type}" style="margin-bottom:16px;display:inline-block">${escapeHtml(item.type)}</span>
         <h2>${escapeHtml(item.title)}</h2>
-        <p style="color:var(--text-light);margin:8px 0">${escapeHtml(item.category)} • Von ${escapeHtml(item.author_name)}</p>
+        <div style="display:flex;align-items:center;gap:8px;margin:8px 0">${getCategoryBadge(item.category)} <span style="color:var(--text-light);font-size:0.9rem"> • Von ${escapeHtml(item.author_name)}</span></div>
         <hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">
         <p style="line-height:1.8">${escapeHtml(item.description).replace(/\n/g, '<br>')}</p>
         ${renderImages(item, true)}
@@ -529,6 +544,7 @@ function showDetail(id) {
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
+    if (window.lucide) lucide.createIcons();
 }
 
 function showUserProfile(id) {
@@ -556,6 +572,7 @@ function showUserProfile(id) {
         </div>
     `;
     document.getElementById('detailModal').classList.add('active');
+    if (window.lucide) lucide.createIcons();
 }
 
 async function loadAccount() {
@@ -593,9 +610,16 @@ async function loadAccount() {
             <div class="card">
                 <div class="card-header">
                     <span class="card-type ${item.type}">${escapeHtml(item.type)}</span>
-                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); startEdit(${item.id})"><i data-lucide="edit-2" style="width:12px;height:12px"></i></button>
-                    <button class="btn-secondary" style="font-size:0.8rem;padding:2px 8px;background:#fee2e2;color:#991b1b;border-color:#fca5a5;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation(); deleteListing(${item.id})"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
-                    <span style="font-size:0.8rem;color:var(--text-light);margin-left:auto">${escapeHtml(item.category)}</span>
+                    ${getCategoryBadge(item.category, "margin-left:auto")}
+                    
+                    <div class="card-actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); startEdit(${item.id})" title="Bearbeiten">
+                            <i data-lucide="pencil" style="width:16px;height:16px"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="event.stopPropagation(); deleteListing(${item.id})" title="Löschen">
+                            <i data-lucide="trash-2" style="width:16px;height:16px"></i>
+                        </button>
+                    </div>
                 </div>
                 <h3>${escapeHtml(item.title)}</h3>
                 <p>${escapeHtml(item.description?.substring(0, 100))}...</p>
