@@ -507,3 +507,9 @@ nav {
 .card, .discover-card, .person-card {
     animation: fadeIn 0.3s ease-out;
 }
+
+.login-hint{background:#fff3cd;color:#856404;border:1px solid #ffeeba;padding:10px 14px;border-radius:8px;margin:12px auto 0;max-width:600px;text-align:center;font-size:0.9rem;}
+
+.listing-images{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.listing-images img{width:100%;max-width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--border);}
+.listing-images.large img{max-width:220px;height:160px;}

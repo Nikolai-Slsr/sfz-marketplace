@@ -13,7 +13,6 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 8081;
 const INVITE_CODE = process.env.SFZ_INVITE_CODE || null;
-const GATE_TOKEN = process.env.SFZ_GATE_TOKEN || null;
 const COOKIE_SECURE = process.env.SFZ_SECURE_COOKIE === 'true';
 
 // Rate Limiting
@@ -31,60 +30,6 @@ const authLimiter = rateLimit({
 
 app.use(bodyParser.json({limit: '10mb'}));
 app.use(cookieParser());
-
-// Optional: URL-Gate gegen einfache Scraper
-if (GATE_TOKEN) {
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    if (req.method !== 'GET') return next();
-
-    // Allow static assets without gate (needed for app.js/css)
-    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf)$/)) {
-      return next();
-    }
-
-    const gateCookie = req.cookies.sfz_gate === '1';
-    const token = req.query.token;
-
-    if (token && token === GATE_TOKEN) {
-      res.cookie('sfz_gate', '1', {
-        httpOnly: true,
-        sameSite: 'Lax',
-        secure: COOKIE_SECURE,
-        maxAge: 30 * 24 * 60 * 60 * 1000
-      });
-      return next();
-    }
-
-    if (gateCookie) return next();
-    return res.status(403).send(`<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SFZ Zugang</title>
-  <style>
-    body{font-family:Inter,system-ui,Arial,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-    .box{background:#111827;border:1px solid #334155;border-radius:16px;padding:28px;max-width:420px;width:90%}
-    h1{margin:0 0 8px 0;font-size:1.4rem}
-    p{color:#94a3b8;line-height:1.5}
-    input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;margin:12px 0}
-    button{width:100%;padding:12px 14px;border-radius:8px;border:none;background:#6366f1;color:white;font-weight:600;cursor:pointer}
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>Zugang nur mit Token</h1>
-    <p>Bitte gib deinen Zugangscode ein. Danach wirst du weitergeleitet.</p>
-    <form onsubmit="event.preventDefault(); const t=document.getElementById('t').value; if(t){ window.location='/?token='+encodeURIComponent(t); }">
-      <input id="t" placeholder="Token eingeben" />
-      <button type="submit">Weiter</button>
-    </form>
-  </div>
-</body>
-</html>`);
-  });
-}
 
 app.use(express.static('public'));
 
@@ -138,6 +83,7 @@ db.serialize(() => {
     price TEXT,
     vb INTEGER DEFAULT 0,
     image_path TEXT,
+    image_paths TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
@@ -190,7 +136,10 @@ app.post('/api/register', authLimiter, (req, res) => {
   const {name, grade, interests, skills, contact, password, inviteCode} = req.body;
   if (!name || !password) return res.status(400).json({error: 'Name und Passwort erforderlich'});
 
-  if (INVITE_CODE && inviteCode !== INVITE_CODE) {
+  if (!INVITE_CODE) {
+    return res.status(500).json({error: 'Invite-Code nicht konfiguriert'});
+  }
+  if (!inviteCode || inviteCode !== INVITE_CODE) {
     return res.status(403).json({error: 'Ungültiger Invite-Code'});
   }
 
@@ -265,7 +214,7 @@ app.get('/api/me', requireLogin, (req, res) => {
 // Upload Setup (optional)
 const upload = multer({
   dest: 'public/uploads/',
-  limits: {fileSize: 5 * 1024 * 1024},
+  limits: {fileSize: 5 * 1024 * 1024, files: 5},
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Nur Bilder erlaubt'));
@@ -273,7 +222,7 @@ const upload = multer({
 });
 
 const uploadMaybe = (req, res, next) => {
-  if (req.is('multipart/form-data')) return upload.single('image')(req, res, next);
+  if (req.is('multipart/form-data')) return upload.array('images', 5)(req, res, next);
   return next();
 };
 
@@ -339,12 +288,14 @@ app.get('/api/match/:userId', apiLimiter, requireLogin, (req, res) => {
 
 app.post('/api/listings', requireLogin, uploadMaybe, (req, res) => {
   const {title, description, category, tags, type, price, vb} = req.body;
-  const image_path = req.file ? '/uploads/' + req.file.filename : null;
+  const files = req.files || [];
+  const image_paths = files.map(f => '/uploads/' + f.filename);
+  const image_path = image_paths[0] || null;
 
-  const sql = `INSERT INTO listings (user_id, title, description, category, tags, type, price, vb, image_path) VALUES (?,?,?,?,?,?,?,?,?)`;
-  db.run(sql, [req.user.id, title, description, category, tags, type, price || '', vb ? 1 : 0, image_path], function(err) {
+  const sql = `INSERT INTO listings (user_id, title, description, category, tags, type, price, vb, image_path, image_paths) VALUES (?,?,?,?,?,?,?,?,?,?)`;
+  db.run(sql, [req.user.id, title, description, category, tags, type, price || '', vb ? 1 : 0, image_path, JSON.stringify(image_paths)], function(err) {
     if (err) return res.status(500).json({error: err.message});
-    res.json({id: this.lastID, image_path});
+    res.json({id: this.lastID, image_path, image_paths});
   });
 });
 

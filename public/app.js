@@ -51,7 +51,7 @@ async function initAuth() {
             localStorage.setItem('sfz_user', JSON.stringify(fresh));
             userMenu.innerHTML = `
                 <span>Hallo, <strong>${currentUser.name}</strong></span>
-                <button onclick="logout()" style="margin-left:10px">Abmelden</button>
+                <button onclick="logout()" class="nav-btn">Abmelden</button>
             `;
             document.getElementById('matchCard').style.display = 'block';
             document.getElementById('accountBtn').style.display = 'inline-block';
@@ -59,7 +59,7 @@ async function initAuth() {
         }
     }
 
-    userMenu.innerHTML = `<button id="loginBtn">Login</button>`;
+    userMenu.innerHTML = `<button id="loginBtn" class="nav-btn">Login</button>`;
     document.getElementById('loginBtn').addEventListener('click', () => {
         document.getElementById('authModal').classList.add('active');
     });
@@ -83,7 +83,11 @@ async function apiPost(url, data) {
 
 async function loadData() {
     try {
-        if (!currentUser) return;
+        if (!currentUser) {
+        const hint = document.getElementById('loginHint');
+        if (hint) hint.style.display = 'block';
+        return;
+    }
         const [listingsRes, usersRes] = await Promise.all([
             fetch('/api/listings'),
             fetch('/api/users')
@@ -153,6 +157,15 @@ function renderActiveUsers() {
     `).join('');
 }
 
+function renderImages(item, large=false){
+    try {
+        const imgs = item.image_paths ? JSON.parse(item.image_paths) : (item.image_path ? [item.image_path] : []);
+        if (!imgs || imgs.length === 0) return '';
+        const cls = large ? 'listing-images large' : 'listing-images';
+        return `<div class="${cls}">${imgs.map(src => `<img src="${src}" alt="Listing" />`).join('')}</div>`;
+    } catch { return ''; }
+}
+
 function formatPrice(price, vb) {
     if (!price) return '';
     let p = price;
@@ -175,6 +188,7 @@ function renderListings(filter) {
             </div>
             <h3>${item.title}</h3>
             <p>${item.description?.substring(0, 100)}...</p>
+            <div class="listing-images">${renderImages(item)}</div>
             <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
             <div class="tags">
                 ${item.tags?.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') || ''}
@@ -302,6 +316,7 @@ async function doRegister(e) {
 
 async function doSearch() {
     const q = document.getElementById('searchInput').value;
+    if (!currentUser) { document.getElementById('authModal').classList.add('active'); return; }
     if (!q) return;
 
     try {
@@ -326,7 +341,8 @@ async function doSearch() {
                 </div>
                 <h3>${item.title}</h3>
                 <p>${item.description?.substring(0, 100)}...</p>
-                <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
+                <div class="listing-images">${renderImages(item)}</div>
+            <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
                 <div class="card-footer">
                     <span>${item.author_name}</span>
                     <span>🔍 Suchtreffer</span>
@@ -345,18 +361,28 @@ async function createListing(e) {
         return;
     }
 
-    const data = {
-        title: document.getElementById('title').value,
-        type: document.getElementById('type').value,
-        category: document.getElementById('category').value,
-        description: document.getElementById('description').value,
-        tags: document.getElementById('tags').value,
-        price: document.getElementById('price').value,
-        vb: document.getElementById('vb').checked
-    };
+    const data = new FormData();
+    data.append('title', document.getElementById('title').value);
+    data.append('type', document.getElementById('type').value);
+    data.append('category', document.getElementById('category').value);
+    data.append('description', document.getElementById('description').value);
+    data.append('tags', document.getElementById('tags').value);
+    data.append('price', document.getElementById('price').value);
+    data.append('vb', document.getElementById('vb').checked ? '1' : '0');
+    const files = document.getElementById('image').files;
+    for (const f of files) data.append('images', f);
 
     try {
-        await apiPost('/api/listings', data);
+        const res = await fetch('/api/listings', { method: 'POST', body: data });
+        if (!res.ok) {
+            if (res.status === 401) {
+                document.getElementById('authModal').classList.add('active');
+                return;
+            }
+            const err = await res.json().catch(() => ({error: 'Unbekannter Fehler'}));
+            alert(err.error || 'Fehler beim Erstellen');
+            return;
+        }
         document.getElementById('createForm').reset();
         switchView('listings');
         loadData();
@@ -382,6 +408,7 @@ function showDetail(id) {
         <p style="color:var(--text-light);margin:8px 0">${item.category} • Von ${item.author_name}</p>
         <hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">
         <p style="line-height:1.8">${item.description?.replace(/\n/g, '<br>')}</p>
+        ${renderImages(item, true)}
         ${priceDisplay}
         <div class="tags" style="margin:20px 0">
             ${item.tags?.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') || 'Keine Tags'}
@@ -441,7 +468,8 @@ async function loadAccount() {
                 </div>
                 <h3>${item.title}</h3>
                 <p>${item.description?.substring(0, 100)}...</p>
-                <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
+                <div class="listing-images">${renderImages(item)}</div>
+            <div style="margin:8px 0">${formatPrice(item.price, item.vb)}</div>
             </div>
         `).join('') || '<p style="color:var(--text-light)">Noch keine Anzeigen.</p>';
     } catch (err) {
