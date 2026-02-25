@@ -117,6 +117,15 @@ db.serialize(() => {
     }
   });
 
+  // Listings Migration for image_paths
+  db.all("PRAGMA table_info(listings)", (err, rows) => {
+    if (err) return;
+    const columns = rows.map(r => r.name);
+    if (!columns.includes('image_paths')) {
+      db.run("ALTER TABLE listings ADD COLUMN image_paths TEXT");
+    }
+  });
+
   db.run(`CREATE TABLE IF NOT EXISTS security_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL,
