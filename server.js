@@ -11,6 +11,9 @@ const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 
 const app = express();
+// Trust Cloudflare proxy (needed for secure cookies & correct IP logging)
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 8081;
 const INVITE_CODE = process.env.SFZ_INVITE_CODE;
 if (!INVITE_CODE) {
