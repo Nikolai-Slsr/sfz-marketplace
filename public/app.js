@@ -350,7 +350,7 @@ function showUserProfile(id) {
                 </div>
                 <h2 style="font-size:2.5rem; margin-bottom:12px; color:var(--text); font-weight:800; letter-spacing:-1px; line-height:1">${displayName}</h2>
                 <div style="display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
-                    <span style="background:var(--bg); border:1px solid var(--border); padding:5px 14px; border-radius:20px; font-size:0.9rem; font-family:monospace; color:var(--text-light); font-weight:600">@${escapeHtml(user.name)}</span>
+                    <span style="background:var(--bg); border:1px solid var(--border); padding:5px 14px; border-radius:20px; font-size:0.9rem; font-family:monospace; color:var(--text-light); font-weight:600">@${escapeHtml(user.username || user.name)}</span>
                     <span style="color:var(--primary); font-weight:800; font-size:1.1rem; display:flex; align-items:center; gap:6px">
                         <i data-lucide="shield-check" style="width:18px;height:18px"></i>
                         ${escapeHtml(user.grade) || 'SFZ Mitglied'}
