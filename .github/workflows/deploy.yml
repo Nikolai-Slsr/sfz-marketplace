@@ -16,7 +16,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          password: ${{ secrets.DEPLOY_SSH_PSD }}
           script: |
             set -e
             if [ ! -d /opt/sfz-marketplace ]; then
