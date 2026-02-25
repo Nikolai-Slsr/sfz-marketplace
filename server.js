@@ -378,7 +378,7 @@ app.get('/api/discover', apiLimiter, requireLogin, (req, res) => {
     SELECT l.*, u.name as author_name, u.grade, u.interests, u.skills, u.contact as contact
     FROM listings l 
     JOIN users u ON l.user_id = u.id
-    ORDER BY RANDOM() LIMIT 5
+    ORDER BY l.created_at DESC LIMIT 6
   `;
   db.all(sql, [], (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
@@ -472,6 +472,19 @@ app.get('/api/users', apiLimiter, requireLogin, (req, res) => {
     if (err) return res.status(500).json({error: err.message});
     res.json(rows);
   });
+});
+
+app.put('/api/me', requireLogin, (req, res) => {
+    const {grade, interests, skills, contact} = req.body;
+    const sql = `UPDATE users SET grade = ?, interests = ?, skills = ?, contact = ? WHERE id = ?`;
+    db.run(sql, [grade, interests, skills, contact, req.user.id], function(err) {
+        if (err) return res.status(500).json({error: err.message});
+        
+        // Return fresh user object for frontend update
+        db.get(`SELECT id, name, grade, interests, skills, contact, is_admin FROM users WHERE id = ?`, [req.user.id], (e, row) => {
+             res.json(row);
+        });
+    });
 });
 
 app.get('/api/search', apiLimiter, requireLogin, (req, res) => {

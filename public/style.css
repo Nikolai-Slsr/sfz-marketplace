@@ -132,11 +132,53 @@ nav {
     font-size: 1.2rem;
 }
 
+.cat-pill {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+.cat-pill:hover { background: var(--border); transform: translateY(-2px); }
+
+.mini-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.mini-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.mini-card:hover { transform: translateX(4px); background: var(--border); }
+.mini-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+.mini-content h4 { margin: 0; font-size: 1rem; }
+
 .discovery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 24px;
+    grid-template-columns: 1fr; /* Stack vertically for better flow on mobile, widen on desktop */
+    gap: 40px;
     margin-bottom: 40px;
+}
+@media(min-width: 800px) {
+    .discovery-grid { grid-template-columns: 1fr 1fr; }
 }
 
 .discover-card {

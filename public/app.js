@@ -42,7 +42,11 @@ function switchView(view) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(view).classList.add('active');
 
-    if (view === 'listings') renderListings('all');
+    if (view === 'listings') {
+        // Only render defaults if grid is empty (first load), otherwise keep current state
+        const grid = document.getElementById('listingsGrid');
+        if (!grid.innerHTML) renderListings('all');
+    }
     if (view === 'people') renderPeople();
     if (view === 'discover') loadDiscovery();
     if (view === 'account') loadAccount();
@@ -65,7 +69,11 @@ async function initAuth() {
                 <button onclick="logout()" class="nav-btn">Abmelden</button>
             `;
             document.getElementById('matchCard').style.display = 'block';
+            document.getElementById('matchListings').classList.add('mini-grid');
             document.getElementById('accountBtn').style.display = 'inline-block';
+            document.getElementById('welcomeTitle').innerText = 'Moin, ' + escapeHtml(currentUser.name.split(' ')[0]) + '!';
+            document.getElementById('welcomeText').innerText = 'Schön, dass du da bist. Hier ist dein Update.';
+            document.getElementById('quickActions').style.display = 'flex';
             return;
         }
     }
@@ -135,18 +143,30 @@ async function loadRandom() {
         const items = await res.json();
         
         items.forEach(r => {
+             // Keep merging in case of missing items
             if (!allListings.find(l => l.id === r.id)) allListings.push(r);
         });
 
         const container = document.getElementById('randomListings');
-        container.innerHTML = items.map(item => `
-            <div class="mini-item" onclick="showDetail(${item.id})">
-                <h4>${escapeHtml(item.title)}</h4>
-                <div class="meta">${escapeHtml(item.author_name)} • ${escapeHtml(item.category)}</div>
-            </div>
-        `).join('');
+        
+        container.innerHTML = items.map(item => {
+            const parsedImages = item.image_paths ? JSON.parse(item.image_paths) : [];
+            const hasImage = parsedImages.length > 0;
+            const bg = hasImage ? `background-image:url(${parsedImages[0]})` : '';
+            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem` : '';
+            const fallbackContent = !hasImage ? '📦' : '';
+
+            return `
+            <div class="mini-card" onclick="showDetail(${item.id})">
+                <div class="mini-img" style="${bg};${fallback}">${fallbackContent}</div>
+                <div class="mini-content">
+                    <h4>${escapeHtml(item.title)}</h4>
+                    <p style="font-size:0.8rem;color:var(--text-light)">${escapeHtml(item.category)} • ${new Date(item.created_at).toLocaleDateString()}</p>
+                </div>
+            </div>`;
+        }).join('');
     } catch (err) {
-        console.error('Error loading random:', err);
+        console.error('Error loading latest:', err);
     }
 }
 
@@ -165,12 +185,22 @@ async function loadMatches() {
             container.innerHTML = '<p style="color: var(--text-light);">Noch keine passenden Anzeigen gefunden. Erstelle dein Profil mit Interessen!</p>';
             return;
         }
-        container.innerHTML = items.map(item => `
-            <div class="mini-item" onclick="showDetail(${item.id})">
-                <h4>${escapeHtml(item.title)}</h4>
-                <div class="meta">Match: ${item.score} gemeinsame Tags</div>
-            </div>
-        `).join('');
+        container.innerHTML = items.map(item => {
+            const parsedImages = item.image_paths ? JSON.parse(item.image_paths) : [];
+            const hasImage = parsedImages.length > 0;
+            const bg = hasImage ? `background-image:url(${parsedImages[0]})` : '';
+            const fallback = !hasImage ? `background:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem` : '';
+            const fallbackContent = !hasImage ? '⚡' : '';
+
+            return `
+            <div class="mini-card" onclick="showDetail(${item.id})">
+                <div class="mini-img" style="${bg};${fallback}">${fallbackContent}</div>
+                <div class="mini-content">
+                    <h4>${escapeHtml(item.title)}</h4>
+                    <div class="meta" style="color:#059669;font-weight:600">${item.score} gemeinsame Tags</div>
+                </div>
+            </div>`;
+        }).join('');
     } catch (err) {
         console.error('Error loading matches:', err);
     }
@@ -211,6 +241,15 @@ function formatPrice(price, vb) {
     let p = escapeHtml(price);
     if (vb == 1 || vb === true) p += ' VB';
     return `<span style="color:var(--primary);font-weight:600">${p}</span>`;
+}
+
+function filterCat(cat) {
+    switchView('listings');
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('active');
+        if (b.dataset.filter === cat) b.classList.add('active');
+    });
+    renderListings(cat);
 }
 
 function renderListings(filter) {
@@ -256,6 +295,13 @@ function renderPeople() {
 }
 
 function setupEventListeners() {
+    // Quick Actions
+    const quickCreate = document.getElementById('quickCreate');
+    if (quickCreate) quickCreate.addEventListener('click', () => {
+        switchView('create');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    });
+
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -274,6 +320,8 @@ function setupEventListeners() {
     document.getElementById('createForm').addEventListener('submit', createListing);
     document.getElementById('bugForm').addEventListener('submit', submitBug);
     document.getElementById('editForm').addEventListener('submit', saveEdit);
+    const pfForm = document.getElementById('editProfileForm');
+    if (pfForm) pfForm.addEventListener('submit', saveProfile);
 
     const bugBtn = document.getElementById('bugBtn');
     if (bugBtn) bugBtn.addEventListener('click', () => document.getElementById('bugModal').classList.add('active'));
@@ -503,11 +551,16 @@ async function loadAccount() {
     if (!currentUser) return;
     const container = document.getElementById('accountInfo');
     container.innerHTML = `
-        <strong>Name:</strong> ${escapeHtml(currentUser.name)}<br>
-        <strong>Klasse:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
-        <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
-        <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
-        <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <strong>Name:</strong> ${escapeHtml(currentUser.name)}<br>
+                <strong>Klasse:</strong> ${escapeHtml(currentUser.grade) || '-'}<br>
+                <strong>Interessen:</strong> ${escapeHtml(currentUser.interests) || '-'}<br>
+                <strong>Skills:</strong> ${escapeHtml(currentUser.skills) || '-'}<br>
+                <strong>Kontakt:</strong> ${escapeHtml(currentUser.contact) || '-'}
+            </div>
+            <button onclick="startProfileEdit()" class="btn-secondary">✏️ Profil</button>
+        </div>
     `;
 
     try {
@@ -535,6 +588,42 @@ async function loadAccount() {
     } catch (err) {
         console.error('Account load error:', err);
     }
+}
+
+function startProfileEdit() {
+    if (!currentUser) return;
+    document.getElementById('profGrade').value = currentUser.grade || '';
+    document.getElementById('profInterests').value = currentUser.interests || '';
+    document.getElementById('profSkills').value = currentUser.skills || '';
+    document.getElementById('profContact').value = currentUser.contact || '';
+    
+    document.getElementById('editProfileModal').classList.add('active');
+}
+
+async function saveProfile(e) {
+    e.preventDefault();
+    const data = {
+        grade: document.getElementById('profGrade').value,
+        interests: document.getElementById('profInterests').value,
+        skills: document.getElementById('profSkills').value,
+        contact: document.getElementById('profContact').value
+    };
+    
+    try {
+        const res = await apiCall('/api/me', 'PUT', data);
+        if (res.ok) {
+            const freshUser = await res.json();
+            currentUser = freshUser;
+            localStorage.setItem('sfz_user', JSON.stringify(freshUser));
+            document.getElementById('editProfileModal').classList.remove('active');
+            loadAccount();
+            
+            // Reload discovery if interests changed
+            loadData();
+        } else {
+            alert('Fehler beim Speichern');
+        }
+    } catch (err) { console.error(err); }
 }
 
 async function deleteListing(id) {
