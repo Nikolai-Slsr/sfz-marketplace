@@ -197,7 +197,7 @@
                 <div class="bug-item">
                     <div>
                         <strong>${escapeHtml(bug.title)}</strong>
-                        <p style="color:var(--text-light);margin-top:4px">${escapeHtml(bug.description?.substring(0, 100))}...</p>
+                        <p style="color:var(--text-light);margin-top:4px;white-space:pre-wrap;">${escapeHtml(bug.description || '')}</p>
                         <small>${escapeHtml(bug.category)} • ${escapeHtml(bug.reporter)} • ${new Date(bug.created_at).toLocaleDateString()}</small>
                     </div>
                     <select onchange="updateBugStatus(${bug.id}, this.value)" class="status-badge status-${bug.status}">
