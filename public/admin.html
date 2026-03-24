@@ -22,8 +22,11 @@
 <body>
     <div class="container">
         <div id="adminPanel">
-            <header style="margin-bottom:40px">
-                <div class="logo">SFZ Admin</div>
+            <header style="margin-bottom:40px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div class="logo">SFZ Admin</div>
+                    <button onclick="window.location.href='/'" class="btn-secondary" style="padding: 6px 14px; font-size: 0.9rem;">Zurück zur Homepage</button>
+                </div>
                 <button onclick="logoutAdmin()" class="btn-secondary">Abmelden</button>
             </header>
 
@@ -56,6 +59,11 @@
                 <h2>🛡️ Sicherheits-Radar</h2>
                 <div id="securityLogs" style="font-family:monospace; font-size: 0.85rem; max-height:300px; overflow-y:auto; background:#1e293b; color:#cbd5e1; padding:16px; border-radius:8px; line-height:1.6;">Lade Logs...</div>
             </div>
+
+            <div class="bug-list" style="margin-top: 40px;">
+                <h2>Anzeigenverwaltung (Moderation)</h2>
+                <div id="adminListingsList" style="overflow-x: auto;">Lade Anzeigen...</div>
+            </div>
         </div>
     </div>
 
@@ -86,6 +94,7 @@
                         loadBugs();
                         loadUsers();
                         loadRadar();
+                        loadAdminListings();
                         return;
                     }
                 }
@@ -176,6 +185,52 @@
             if (res.ok) {
                 loadUsers();
                 loadStats(); // Refresh stats too
+            } else {
+                const data = await res.json();
+                alert('Fehler beim Löschen: ' + (data.error || 'Unbekannt'));
+            }
+        }
+
+        async function loadAdminListings() {
+            const res = await fetch('/api/listings');
+            if (!res.ok) return;
+            const listings = await res.json();
+            
+            const container = document.getElementById('adminListingsList');
+            if (listings.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-light);padding:24px">Keine Anzeigen vorhanden.</p>';
+                return;
+            }
+            
+            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Titel</th><th style="padding:12px;">Kategorie</th><th style="padding:12px;">Autor</th><th style="padding:12px;">Datum</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
+            
+            listings.forEach(listing => {
+                html += `<tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding:12px;"><strong>${escapeHtml(listing.title)}</strong></td>
+                    <td style="padding:12px;">${escapeHtml(listing.category) || '-'}</td>
+                    <td style="padding:12px;">${escapeHtml(listing.author_name)}</td>
+                    <td style="padding:12px;">${new Date(listing.created_at).toLocaleDateString()}</td>
+                    <td style="padding:12px;">
+                        <button onclick="adminDeleteListing(${listing.id})" class="status-badge status-open" style="border:none; cursor:pointer;">
+                            Löschen
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function adminDeleteListing(id) {
+            if (!confirm('Soll diese Anzeige wirklich gelöscht werden?')) return;
+            
+            const res = await fetch(`/api/listings/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (res.ok) {
+                loadAdminListings();
+                loadStats();
             } else {
                 const data = await res.json();
                 alert('Fehler beim Löschen: ' + (data.error || 'Unbekannt'));
