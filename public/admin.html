@@ -7,62 +7,107 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
-        .stat-card { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 24px; border-radius: 16px; text-align: center; }
-        .stat-card h3 { font-size: 2.5rem; margin-bottom: 8px; }
-        .bug-list { background: var(--card); border-radius: 16px; padding: 24px; }
-        .bug-item { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .bug-item:last-child { border-bottom: none; }
-        .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; background: rgba(255,255,255,0.5); backdrop-filter: blur(10px); padding: 20px 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .admin-header h1 { font-size: 1.8rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0; }
+        
+        .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .stat-card-glass { background: linear-gradient(135deg, rgba(99, 102, 241, 0.85), rgba(139, 92, 246, 0.85)); backdrop-filter: blur(12px); color: white; padding: 32px; border-radius: 24px; text-align: center; box-shadow: 0 15px 30px -10px rgba(99, 102, 241, 0.4); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease; }
+        .stat-card-glass:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.5); }
+        .stat-card-glass h3 { font-size: 3.5rem; margin-bottom: 4px; font-weight: 800; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-card-glass p { font-size: 1.1rem; font-weight: 500; opacity: 0.9; margin: 0; }
+        
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 40px; }
+        @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+        
+        .premium-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border-radius: 24px; padding: 28px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.8); transition: transform 0.3s ease; display: flex; flex-direction: column; max-height: 500px; }
+        .premium-card:hover { box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+        
+        .card-title { font-size: 1.3rem; color: var(--text); padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; align-items: center; gap: 8px; font-weight: 600; margin-top: 0; }
+        
+        /* Modern Table Styles */
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th { padding: 14px 12px; text-align: left; color: var(--text-light); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid rgba(0,0,0,0.04); }
+        td { padding: 14px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background-color 0.2s; }
+        tbody tr:hover { background-color: rgba(255,255,255,0.5); }
+        
+        .bug-item { padding: 16px; border-radius: 12px; margin-bottom: 12px; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: flex-start; transition: all 0.2s; }
+        .bug-item:hover { background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transform: translateY(-1px); }
+        .bug-item h4 { margin-bottom: 4px; font-size: 1.05rem; }
+        .bug-item p { color: var(--text-light); font-size: 0.9rem; margin-bottom: 8px; }
+        
+        .status-badge { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-align: center; display: inline-block; }
         .status-open { background: #fee2e2; color: #991b1b; }
         .status-closed { background: #dcfce7; color: #166534; }
-        .admin-login { max-width: 400px; margin: 100px auto; background: var(--card); padding: 40px; border-radius: 16px; box-shadow: var(--shadow); }
+        
+        .log-container { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; overflow-y: auto; background: #0f172a; color: #cbd5e1; padding: 20px; border-radius: 16px; line-height: 1.6; height: 100%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        
+        .scroller { overflow-y: auto; padding-right: 8px; }
+        .scroller::-webkit-scrollbar { width: 6px; }
+        .scroller::-webkit-scrollbar-track { background: transparent; }
+        .scroller::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .scroller::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+        
+        .log-container::-webkit-scrollbar { width: 8px; }
+        .log-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .log-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" style="max-width: 1400px;">
         <div id="adminPanel">
-            <header style="margin-bottom:40px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <div class="logo">SFZ Admin</div>
-                    <button onclick="window.location.href='/'" class="btn-secondary" style="padding: 6px 14px; font-size: 0.9rem;">Zurück zur Homepage</button>
+            <header class="admin-header">
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <h1>SFZ Admin</h1>
+                    <button onclick="window.location.href='/'" class="btn-secondary" style="border-radius: 20px; padding: 8px 16px;">
+                        <span style="font-weight: 600;">Zurück zur Homepage</span>
+                    </button>
                 </div>
-                <button onclick="logoutAdmin()" class="btn-secondary">Abmelden</button>
+                <button onclick="logoutAdmin()" class="btn-secondary" style="border-radius: 20px; color: #ef4444; border-color: #fecaca; background: #fef2f2; padding: 8px 20px; font-weight: 600;">Abmelden</button>
             </header>
 
             <div class="admin-grid">
-                <div class="stat-card">
+                <div class="stat-card-glass">
                     <h3 id="statUsers">0</h3>
                     <p>Mitglieder</p>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card-glass" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); box-shadow: 0 15px 30px -10px rgba(6, 182, 212, 0.4);">
                     <h3 id="statListings">0</h3>
                     <p>Anzeigen</p>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card-glass" style="background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 15px 30px -10px rgba(239, 68, 68, 0.4);">
                     <h3 id="statBugs">0</h3>
-                    <p>Bugs/Feedback</p>
+                    <p>Bugs & Feedback</p>
                 </div>
             </div>
 
-            <div class="bug-list">
-                <h2>Bug Reports & Feedback</h2>
-                <div id="bugsList"></div>
-            </div>
+            <div class="dashboard-grid">
+                <!-- Column 1 -->
+                <div style="display: flex; flex-direction: column; gap: 30px;">
+                    <div class="premium-card">
+                        <h2 class="card-title">Benutzerverwaltung</h2>
+                        <div id="usersList" class="scroller"></div>
+                    </div>
 
-            <div class="bug-list" style="margin-top: 40px;">
-                <h2>Benutzerverwaltung</h2>
-                <div id="usersList" style="overflow-x: auto;"></div>
-            </div>
+                    <div class="premium-card">
+                        <h2 class="card-title">Anzeigenverwaltung (Moderation)</h2>
+                        <div id="adminListingsList" class="scroller">Lade Anzeigen...</div>
+                    </div>
+                </div>
 
-            <div class="bug-list" style="margin-top: 40px; border-left: 5px solid #ef4444;">
-                <h2>🛡️ Sicherheits-Radar</h2>
-                <div id="securityLogs" style="font-family:monospace; font-size: 0.85rem; max-height:300px; overflow-y:auto; background:#1e293b; color:#cbd5e1; padding:16px; border-radius:8px; line-height:1.6;">Lade Logs...</div>
-            </div>
-
-            <div class="bug-list" style="margin-top: 40px;">
-                <h2>Anzeigenverwaltung (Moderation)</h2>
-                <div id="adminListingsList" style="overflow-x: auto;">Lade Anzeigen...</div>
+                <!-- Column 2 -->
+                <div style="display: flex; flex-direction: column; gap: 30px;">
+                    <div class="premium-card">
+                        <h2 class="card-title">🛡️ Sicherheits-Radar</h2>
+                        <div id="securityLogs" class="log-container">Lade Logs...</div>
+                    </div>
+                    
+                    <div class="premium-card">
+                        <h2 class="card-title">Bug Reports & Feedback</h2>
+                        <div id="bugsList" class="scroller"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -130,25 +175,25 @@
                 return;
             }
             
-            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Name</th><th style="padding:12px;">Status</th><th style="padding:12px;">Rolle</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Name</th><th>Status</th><th>Rolle</th><th>Aktionen</th></tr></thead><tbody>';
             
             users.forEach(user => {
                 const isAdmin = user.is_admin === 1;
                 const isSelf = user.id === currentUserId;
-                html += `<tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding:12px;"><strong>${escapeHtml(user.name)}</strong></td>
-                    <td style="padding:12px;">${escapeHtml(user.grade) || '-'}</td>
-                    <td style="padding:12px;">
+                html += `<tr>
+                    <td><strong>${escapeHtml(user.name)}</strong></td>
+                    <td>${escapeHtml(user.grade) || '-'}</td>
+                    <td>
                         <span class="status-badge ${isAdmin ? 'status-closed' : 'status-open'}" style="background:${isAdmin ? '#e0f2fe' : '#f1f5f9'}; color:${isAdmin ? '#0369a1' : '#64748b'}">
                             ${isAdmin ? 'Admin' : 'User'}
                         </span>
                     </td>
-                    <td style="padding:12px;">
+                    <td>
                         ${!isSelf ? `
-                        <button onclick="toggleAdminRole(${user.id}, ${!isAdmin})" class="status-badge" style="border:none; cursor:pointer; background:${isAdmin ? '#f1f5f9' : '#e0f2fe'}; color:${isAdmin ? '#64748b' : '#0369a1'}; margin-right:8px;">
+                        <button onclick="toggleAdminRole(${user.id}, ${!isAdmin})" class="status-badge" style="border:none; cursor:pointer; background:${isAdmin ? '#f1f5f9' : '#e0f2fe'}; color:${isAdmin ? '#64748b' : '#0369a1'}; margin-right:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             ${isAdmin ? 'Admin entfernen' : 'Zum Admin machen'}
                         </button>
-                        <button onclick="deleteUser(${user.id})" class="status-badge status-open" style="border:none; cursor:pointer;">
+                        <button onclick="deleteUser(${user.id})" class="status-badge status-open" style="border:none; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             Löschen
                         </button>
                         ` : '<span style="color:var(--text-light); font-size: 0.8rem;">(Du)</span>'}
@@ -202,16 +247,16 @@
                 return;
             }
             
-            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="text-align:left; border-bottom: 1px solid var(--border);color:var(--text-light);"><th style="padding:12px;">Titel</th><th style="padding:12px;">Kategorie</th><th style="padding:12px;">Autor</th><th style="padding:12px;">Datum</th><th style="padding:12px;">Aktionen</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Titel</th><th>Kategorie</th><th>Autor</th><th>Datum</th><th>Aktionen</th></tr></thead><tbody>';
             
             listings.forEach(listing => {
-                html += `<tr style="border-bottom: 1px solid var(--border);">
-                    <td style="padding:12px;"><strong>${escapeHtml(listing.title)}</strong></td>
-                    <td style="padding:12px;">${escapeHtml(listing.category) || '-'}</td>
-                    <td style="padding:12px;">${escapeHtml(listing.author_name)}</td>
-                    <td style="padding:12px;">${new Date(listing.created_at).toLocaleDateString()}</td>
-                    <td style="padding:12px;">
-                        <button onclick="adminDeleteListing(${listing.id})" class="status-badge status-open" style="border:none; cursor:pointer;">
+                html += `<tr>
+                    <td><strong>${escapeHtml(listing.title)}</strong></td>
+                    <td>${escapeHtml(listing.category) || '-'}</td>
+                    <td>${escapeHtml(listing.author_name)}</td>
+                    <td>${new Date(listing.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button onclick="adminDeleteListing(${listing.id})" class="status-badge status-open" style="border:none; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             Löschen
                         </button>
                     </td>
